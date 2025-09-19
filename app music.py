@@ -10,7 +10,7 @@ class Control_Data_Store:
     pass
 
 #แอปฟังเพลงของผมเอง
-#ทดสอบการเปลี่ยนแปลง
+#data
 class login_App_music(QDialog):
     def __init__(self):
         super().__init__()
