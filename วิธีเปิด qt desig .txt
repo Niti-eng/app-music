@@ -1,0 +1,5 @@
+
+วิธีเปิด qt desig
+
+ให้เปิด terminal
+แล้วพิมพ์  designer

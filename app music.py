@@ -10,15 +10,18 @@ class Control_Data_Store:
     pass
 
 #แอปฟังเพลงของผมเอง
-#data
 class login_App_music(QDialog):
-    def __init__(self):
+    def __init__(self, stacked_widget_login_page):
         super().__init__()
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
         uic.loadUi("music .ui", self)
+        #เก็บสแต็ก
+        self.stacked_widget = stacked_widget_login_page
+        #ตั้งค่าปุ่มlogin กับ make_profile
         self.loginbutton.clicked.connect(self.loginfunction)
         self.make_profile.clicked.connect(self.Go_Create_profile)
-
+        self.loginbutton.clicked.connect(self.login_to_home)
+        #ตั้งค่าขนาดหน้าจอ
         self.resize(1920, 1080)
         self.setMinimumSize(800, 600)
 
@@ -53,19 +56,19 @@ class login_App_music(QDialog):
         print("name", username, "pass", password)
 
     def Go_Create_profile(self):
-        make_profile = Create_profile(stacked_widget)
-        self.stacked_widget = stacked_widget
-        stacked_widget.addWidget(make_profile)
         #แสดงหน้า sign up
-        self.stacked_widget.setCurrentWidget(make_profile)
+        self.stacked_widget.setCurrentIndex(1)
+
+    def login_to_home(self):
+        #แสดงหน้า Home_page
+        self.stacked_widget.setCurrentIndex(2)
 
 class Create_profile(QDialog):
-    def __init__(self, stacked_widget):
-        super(Create_profile,self).__init__()
-        uic.loadUi("music sign up.ui",self)
-        
-        # เก็บ stacked_widget ไว้ใช้งาน
-        self.stacked_widget = stacked_widget  
+    def __init__(self, stacked_widget_Create_profile):
+        super().__init__()
+        uic.loadUi("music sign up.ui", self)
+        #เก็บสแต็ก
+        self.stacked_widget = stacked_widget_Create_profile  
         
         self.signup_button.clicked.connect(self.create_function)
         self.back_to_login.clicked.connect(self.go_back_to_login)
@@ -107,28 +110,84 @@ class Create_profile(QDialog):
 
 
 class Home_page(QMainWindow):
-    def __init__(self):
-        super(Home_page,self).__init__()
-        super()
-        uic.loadUi("music Home start.ui",self)
+    def __init__(self, stacked_widget_home_page):
+        super().__init__()
+        uic.loadUi("music Home start.ui", self)
+        #เก็บสแต็ก
+        self.stacked_widget = stacked_widget_home_page
+        #self.go_to_home.clicked.connect(self.)
+        self.go_to_library.clicked.connect(self.home_to_library)
+        self.go_to_setting.clicked.connect(self.home_to_setting)
+
+        
+        self.bar_app.setFixedHeight(70)
+    
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.bar_app.setGeometry(0, 0, self.width(), 70)
 
     def home_to_library(self):
-        uic.loadUi("music library.ui",self)
-        pass
+        self.stacked_widget.setCurrentIndex(3)
 
     def home_to_setting(self):
-       uic.loadUi("music setting.ui",self)
-       pass
+       self.stacked_widget.setCurrentIndex(4)
+
+class library_page(QMainWindow):
+    def __init__(self, stacked_widget_library_page):
+        super().__init__()
+        uic.loadUi("music library.ui", self)
+        #เก็บสแต็ก
+        self.stacked_widget = stacked_widget_library_page
+        self.go_to_home.clicked.connect(self.library_to_home)
+        #self.go_to_library.clicked.connect(self.)
+        self.go_to_setting.clicked.connect(self.library_to_setting)
+
+    def library_to_home(self):
+        self.stacked_widget.setCurrentIndex(2)
+
+    def library_to_setting(self):
+         self.stacked_widget.setCurrentIndex(4)
+
+class setting_page(QMainWindow):
+    def __init__(self, stacked_widget_setting_page):
+        super().__init__()
+        uic.loadUi("music setting.ui", self)
+        #เก็บสแต็ก
+        self.stacked_widget = stacked_widget_setting_page
+        self.go_to_home.clicked.connect(self.setting_to_home)
+        self.go_to_library.clicked.connect(self.setting_to_library)
+        #self.go_to_setting.clicked.connect(self.)
+
+    def setting_to_home(self):
+        self.stacked_widget.setCurrentIndex(2)
+
+    def setting_to_library(self):
+        self.stacked_widget.setCurrentIndex(3)
 
 
 app = QApplication(sys.argv)
+#สร้างตัวแปรเก็บสแต็ก
 stacked_widget = QStackedWidget()
 
-main_windown = login_App_music()
-stacked_widget.addWidget(main_windown)
+#stacked_widget index 0 LOGIN
+login_page = login_App_music(stacked_widget)
+stacked_widget.addWidget(login_page)
 
+#stacked_widget index 1 SIGN UP
 sign_up = Create_profile(stacked_widget)
 stacked_widget.addWidget(sign_up)
+
+#stacked_widget index 2 HOME
+Home = Home_page(stacked_widget)
+stacked_widget.addWidget(Home)
+
+#stacked_widget index 3 LIBRARY
+library = library_page(stacked_widget)
+stacked_widget.addWidget(library)
+
+#stacked_widget index 4 SETTING
+setting = setting_page(stacked_widget)
+stacked_widget.addWidget(setting)
 
 stacked_widget.show()
 sys.exit(app.exec())
