@@ -194,18 +194,86 @@
     <property name="frameShadow">
      <enum>QFrame::Shadow::Raised</enum>
     </property>
+    <widget class="QGroupBox" name="play_music_box">
+     <property name="geometry">
+      <rect>
+       <x>230</x>
+       <y>-30</y>
+       <width>301</width>
+       <height>81</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: rgb(255, 255, 255);</string>
+     </property>
+     <property name="title">
+      <string/>
+     </property>
+     <widget class="QPushButton" name="play_music">
+      <property name="geometry">
+       <rect>
+        <x>100</x>
+        <y>40</y>
+        <width>41</width>
+        <height>32</height>
+       </rect>
+      </property>
+      <property name="whatsThis">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:18pt;&quot;&gt;เล่น&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">background-color: rgb(255, 255, 255);
+color: rgb(255, 14, 0);
+font-size: 20px;</string>
+      </property>
+      <property name="text">
+       <string>เล่น</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="stop_music">
+      <property name="geometry">
+       <rect>
+        <x>150</x>
+        <y>40</y>
+        <width>51</width>
+        <height>32</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">background-color: rgb(255, 255, 255);
+color: rgb(255, 7, 0);
+font-size: 20px;</string>
+      </property>
+      <property name="text">
+       <string>หยุด</string>
+      </property>
+     </widget>
+    </widget>
    </widget>
-   <widget class="QGroupBox" name="play_music_box">
+   <widget class="QPushButton" name="start_music_again">
     <property name="geometry">
      <rect>
-      <x>180</x>
-      <y>310</y>
-      <width>301</width>
-      <height>61</height>
+      <x>100</x>
+      <y>250</y>
+      <width>100</width>
+      <height>32</height>
      </rect>
     </property>
-    <property name="title">
-     <string/>
+    <property name="text">
+     <string>เริ่มใหม่</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="skip_music">
+    <property name="geometry">
+     <rect>
+      <x>400</x>
+      <y>180</y>
+      <width>100</width>
+      <height>32</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>ข้าม</string>
     </property>
    </widget>
   </widget>
