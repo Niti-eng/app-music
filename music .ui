@@ -12,8 +12,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>923</width>
-    <height>820</height>
+    <width>813</width>
+    <height>595</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -180,6 +180,26 @@ background-color: rgb(249, 199, 202);</string>
     </property>
     <property name="text">
      <string>รหัสผ่าน</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="text_8cha">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>220</x>
+      <y>230</y>
+      <width>71</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(0, 0, 0, 0);
+color: rgb(0, 0, 0);</string>
+    </property>
+    <property name="text">
+     <string>ใส่รหัส8ตัว</string>
     </property>
    </widget>
   </widget>
