@@ -2,15 +2,12 @@
 <ui version="4.0">
  <class>Dialog</class>
  <widget class="QDialog" name="Dialog">
-  <property name="enabled">
-   <bool>false</bool>
-  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>900</width>
-    <height>900</height>
+    <width>800</width>
+    <height>600</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,75 +16,44 @@
   <property name="styleSheet">
    <string notr="true">background-color: rgb(217, 255, 251);</string>
   </property>
-  <widget class="QGroupBox" name="sign_up_edit_pic_Box">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
+  <widget class="QPushButton" name="sumit_profile">
    <property name="geometry">
     <rect>
-     <x>30</x>
-     <y>30</y>
-     <width>771</width>
-     <height>591</height>
+     <x>330</x>
+     <y>510</y>
+     <width>100</width>
+     <height>32</height>
     </rect>
    </property>
-   <property name="mouseTracking">
-    <bool>false</bool>
+   <property name="text">
+    <string>ยืนยัน</string>
    </property>
-   <property name="title">
-    <string/>
+  </widget>
+  <widget class="QGraphicsView" name="edit_profile">
+   <property name="geometry">
+    <rect>
+     <x>190</x>
+     <y>30</y>
+     <width>400</width>
+     <height>400</height>
+    </rect>
    </property>
-   <widget class="QLabel" name="label">
-    <property name="geometry">
-     <rect>
-      <x>340</x>
-      <y>0</y>
-      <width>121</width>
-      <height>31</height>
-     </rect>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">color: rgb(255, 5, 0);</string>
-    </property>
-    <property name="text">
-     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:18pt;&quot;&gt;แก้ไขรูปโปรไฟล์&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-    </property>
-   </widget>
-   <widget class="QGraphicsView" name="edit_picture_profile">
-    <property name="geometry">
-     <rect>
-      <x>200</x>
-      <y>40</y>
-      <width>400</width>
-      <height>400</height>
-     </rect>
-    </property>
-    <property name="acceptDrops">
-     <bool>true</bool>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">background-color: rgb(178, 187, 255);</string>
-    </property>
-   </widget>
-   <widget class="QSlider" name="L_D_pickture">
-    <property name="enabled">
-     <bool>false</bool>
-    </property>
-    <property name="geometry">
-     <rect>
-      <x>310</x>
-      <y>460</y>
-      <width>160</width>
-      <height>25</height>
-     </rect>
-    </property>
-    <property name="mouseTracking">
-     <bool>false</bool>
-    </property>
-    <property name="orientation">
-     <enum>Qt::Orientation::Horizontal</enum>
-    </property>
-   </widget>
+   <property name="styleSheet">
+    <string notr="true">background-color: rgb(178, 187, 255);</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="selec_picture">
+   <property name="geometry">
+    <rect>
+     <x>70</x>
+     <y>460</y>
+     <width>100</width>
+     <height>32</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>เลือกรูป</string>
+   </property>
   </widget>
  </widget>
  <resources/>

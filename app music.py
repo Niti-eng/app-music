@@ -269,7 +269,6 @@ class Home_page(QMainWindow, control_music):
         self.stacked_widget = stacked_widget_home_page
 
         # เก็บใน centralWidget
-        self.Left_bar.setParent(self.centralWidget())
         self.Right_bar.setParent(self.centralWidget())
         self.down_bar.setParent(self.centralWidget())
         self.Media.setParent(self.centralWidget())
@@ -306,19 +305,16 @@ class Home_page(QMainWindow, control_music):
         #แสดงเมนู
         self.manu_box.setGeometry(x, y, manu_box_w, manu_box_h)
 
-        #จัดตำแหน่งLeft_bar
-        Left_bar_h = int(self.height() * 0.85)
-        self.Left_bar.setGeometry(0, 70, 65, Left_bar_h)
-
         #จัดตำแหน่งdown_bar
         down_bar_h = 100
         down_bar_y = self.height() - down_bar_h
         self.down_bar.setGeometry(0, down_bar_y, int(self.width()), down_bar_h)
 
         #จัดตำแหน่งRight_bar
+        bar_h = int(self.height() * 0.85)
         Right_bar = int(self.height() * 0.85)
         Right_bar_x = int(self.width() * 1.0 - 470)
-        self.Right_bar.setGeometry(Right_bar_x, 70, 470, Left_bar_h)
+        self.Right_bar.setGeometry(Right_bar_x, 70, 470, bar_h)
 
         # จัดตำแหน่งMedia
         # ดึง geometry จริงของ Right_bar
@@ -433,7 +429,6 @@ class library_page(QMainWindow, control_music):
         self.stacked_widget = stacked_widget_library_page
         
         # เก็บใน centralWidget
-        self.Left_bar.setParent(self.centralWidget())
         self.Right_bar.setParent(self.centralWidget())
         self.down_bar.setParent(self.centralWidget())
         self.Media.setParent(self.centralWidget())
@@ -480,18 +475,15 @@ class library_page(QMainWindow, control_music):
 
         self.bar_app.setGeometry(0, 0, self.width(), 70)
 
-        #จัดตำแหน่งLeft_bar
-        Left_bar_h = int(self.height() * 0.85)
-        self.Left_bar.setGeometry(0, 70, 65, Left_bar_h)
-
         #จัดตำแหน่งdown_bar
         down_bar_h = 100
         down_bar_y = self.height() - down_bar_h
         self.down_bar.setGeometry(0, down_bar_y, int(self.width()), down_bar_h)
 
         #จัดตำแหน่งRight_bar
+        bar_h = int(self.height() * 0.85)
         Right_bar_x = int(self.width() * 1.0 - 470)
-        self.Right_bar.setGeometry(Right_bar_x, 70, 470, Left_bar_h)
+        self.Right_bar.setGeometry(Right_bar_x, 70, 470, bar_h)
 
         # จัดตำแหน่งMedia
         # ดึง geometry จริงของ Right_bar
@@ -564,7 +556,6 @@ class setting_page(QMainWindow):
         #เก็บสแต็ก
         self.stacked_widget = stacked_widget_setting_page
         # เก็บใน centralWidget
-        self.Left_bar.setParent(self.centralWidget())
         self.Right_bar.setParent(self.centralWidget())
         self.down_bar.setParent(self.centralWidget())
         self.Media.setParent(self.centralWidget())
@@ -586,18 +577,15 @@ class setting_page(QMainWindow):
         super().resizeEvent(event)
         self.bar_app.setGeometry(0, 0, self.width(), 70)
 
-        #จัดตำแหน่งLeft_bar
-        Left_bar_h = int(self.height() * 0.85)
-        self.Left_bar.setGeometry(0, 70, 65, Left_bar_h)
-
         #จัดตำแหน่งdown_bar
         down_bar_h = 100
         down_bar_y = self.height() - down_bar_h
         self.down_bar.setGeometry(0, down_bar_y, int(self.width()), down_bar_h)
 
         #จัดตำแหน่งRight_bar
+        bar_h = int(self.height() * 0.85)
         Right_bar_x = int(self.width() * 1.0 - 470)
-        self.Right_bar.setGeometry(Right_bar_x, 70, 470, Left_bar_h)
+        self.Right_bar.setGeometry(Right_bar_x, 70, 470, bar_h)
 
         # จัดตำแหน่งMedia
         # ดึง geometry จริงของ Right_bar
@@ -668,9 +656,6 @@ class setting_page(QMainWindow):
 
         # จัดตำแหน่ง mode_night
         self.mode_night.setGeometry(del_music_x, int(del_music_y + 160), 99, 20)
-
-        # จัดตำแหน่ง video_open_app
-        self.video_open_app.setGeometry(del_music_x, int(del_music_y + 350), 121, 20)
 
     def open_edit_profile_dialog(self):
         open_edit = QDialog(self)
