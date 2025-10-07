@@ -34,7 +34,7 @@
    <widget class="QLabel" name="label_4">
     <property name="geometry">
      <rect>
-      <x>30</x>
+      <x>40</x>
       <y>260</y>
       <width>91</width>
       <height>31</height>
@@ -67,7 +67,7 @@ background-color: rgb(248, 179, 173);</string>
    <widget class="QLabel" name="label_3">
     <property name="geometry">
      <rect>
-      <x>40</x>
+      <x>50</x>
       <y>180</y>
       <width>71</width>
       <height>31</height>
@@ -241,6 +241,23 @@ background-color: rgb(225, 225, 225);</string>
     </property>
     <property name="text">
      <string>*ไฟล์ png กับ jpeg เท่านั้น</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="text_8pass">
+    <property name="geometry">
+     <rect>
+      <x>200</x>
+      <y>220</y>
+      <width>111</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: rgb(0, 0, 0);
+background-color: rgb(0, 0, 0, 0);</string>
+    </property>
+    <property name="text">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;ใส่รหัสอย่างน้อย8ตัว&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
    </widget>
   </widget>

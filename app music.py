@@ -11,79 +11,182 @@ from PyQt6 import uic
 from PyQt6.QtGui import QPixmap, QColor, QImage, QPainter, QRadialGradient, QIcon
 
 class globals_var:
+    # เก็บเพลงที่เอาเข้ามา ชั่วคราว
     music_list = []
     file_types = "Music Files (*.mp3 *.wav)"
+    # เก็บเพลงเล่นก่อนหลัง
+    music_history = []
 
+    # เก็บ profile ที่กำลังใช้
     user_now = None
+    # เก็บรหัสผ่านของ profile นี้
+    pass_now = None
+    # เก็บ folder path
+    global_folder_path = None
+    # โหมดเริ่มต้น
+    start_mode = None
 
 class Control_Data_Store:
-    def __init__(self, db_filename_1="user_and_pass_store.db"):
-        self.db_filename_1 = db_filename_1
-        self.conn = None
-        self.cursor = None
-        self.connect_db()
-
-    # ฟังก์ชันเชื่อมฐานข้อมูล
-    def connect_db(self):
-        self.conn = sqlite3.connect(self.db_filename_1)
-        self.cursor = self.conn.cursor()
-        self.create_table()
-
-    # ฟังก์ชันสร้าง table ถ้ายังไม่มี
-    def create_table_user_and_pass_store(self):
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS user_and_password (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL UNIQUE,
-                password TEXT NOT NULL
-            )
-        """)
-        self.conn.commit()
+    instance_Control_Data_Store = None
+    def __new__(cls):
+        if cls.instance_Control_Data_Store is None:
+            cls.instance_Control_Data_Store = super(Control_Data_Store, cls).__new__(cls)
+            # เก็บ username ทั้งหมดใน user and pass store.db
+            cls.all_username = []
+            # เก็บเพลงทั้งหมดของ profile นั้นๆ
+            cls.all_music_profile = []
+        return cls.instance_Control_Data_Store
     
-    # ฟังก์ชันบันทึก user
-    def save_user_and_pass_store(self, username, password):
-        try:
-            self.cursor.execute("""
-                INSERT INTO user_and_password (username, password)
-                VALUES (?, ?)
-            """, (username, password))
-            self.conn.commit()
-            return True
-        except sqlite3.IntegrityError:
+    # สร้างฐานข้อมูล profile ที่ผู้ใช้สร้าง
+    def store_profile(self):
+        self.user = globals_var.user_now
+        self.password = globals_var.pass_now
+        self.folder_path = globals_var.global_folder_path
+        self.mode = globals_var.start_mode
+
+        profile_store = f"{self.user}_profile_store.db"
+        # เชื่อฐายข้อมล
+        conn = sqlite3.connect(profile_store)
+        cursor = conn.cursor()
+        # สร้างตาราง profile
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS profile_info (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            password TEXT,
+            music_folder_path TEXT,
+            mode TEXT)  """)
+         # เพิ่มข้อมูล
+        cursor.execute("""INSERT INTO profile_info (username, password, music_folder_path, mode)VALUES (?, ?, ?, ?)""", (self.user, self.password, self.folder_path, self.mode))
+        conn.commit()
+        conn.close()
+        return True
+        pass
+
+    # เช็คว่ามี username ซ้ำมั้ย
+    def check_username(self, make_username, make_password, confirm_password):
+
+        # เช็คว่ารหัสมีอย่างน้อย8ตัวมั้ย
+        if len(make_password) < 8:
+            QMessageBox.warning(None, "Error", "รหัสผ่านต้องมีอย่างน้อย8ตัว")
+            return False
+        
+        conn = sqlite3.connect("user and pass store.db")
+        cursor = conn.cursor()
+        # ดึง username ทั้งหมด
+        cursor.execute("SELECT username FROM user_and_password")
+        rows = cursor.fetchall()
+        self.all_username = [row[0] for row in rows]
+        if make_username in self.all_username:
+           QMessageBox.warning(None, "Error", f"ชื่อ {make_username} ซ้ำ")
+           return False
+        # ตรวจสอบว่ารหัสผ่านตรงกันมั้ย
+        if make_password != confirm_password:
+            QMessageBox.warning(None, "Error", "รหัสผ่านไม่ตรงกัน")
+            return False
+            # เพิ่ม username ในกรณีไม่ซ้ำกัน
+        cursor.execute("INSERT INTO user_and_password (username, password) VALUES (?, ?)", (make_username, make_password))
+        conn.commit()
+        globals_var.user_now = make_username
+        globals_var.pass_now = make_password
+        conn.close()
+        print(globals_var.user_now)
+        return True
+    
+    def login_check_username_and_password(self, username, password):
+        # ตัดช่องว่าง
+        self.username = username
+        self.password = password
+
+        if not self.username:
+            QMessageBox.warning(None, "Error", "กรุณาใส่ชื่อ")
             return False
 
-    # ฟังก์ชันอ่าน user ทั้งหมด
-    def get_all_user_and_pass_store(self):
-        self.cursor.execute("SELECT username, password FROM user_and_password")
-        return self.cursor.fetchall()
-
-    # ฟังก์ชันปิดการเชื่อมต่อ DB
-    def close_db_user_and_pass_store(self):
-        if self.conn:
-            self.conn.close()
-        
+        conn = sqlite3.connect("user and pass store.db")
+        cursor = conn.cursor()
+        # ดึง username ทั้งหมด
+        cursor.execute("SELECT username FROM user_and_password")
+        rows = cursor.fetchall()
+        self.all_username = [row[0] for row in rows]
+        # ดูว่ามี username นี้มั้ย
+        # ถ้าไม่มี
+        if self.username not in self.all_username:
+            QMessageBox.warning(None, "Error", "ไม่มีชื่อนี้")
+            conn.close()
+            return False
+        # ถ้ามี
+        if self.username in self.all_username:
+            if not self.password:
+               QMessageBox.warning(None, "Error", "กรุณาใส่รหัสผ่านด้วย")
+               return False
+            cursor.execute("SELECT password FROM user_and_password WHERE username = ?", (self.username,))
+            #ดึงแถว
+            row = cursor.fetchone()
+            check_password = row[0]
+            if self.password != check_password:
+                QMessageBox.warning(None, "Error", "รหัสผ่านไม่ถูกต้อง")
+                conn.close()
+                return False
+            elif self.password == check_password:
+                QMessageBox.warning(None, "Event", f"ยินดีตอนรับสู่แอพฟังเพลง {username}")
+                globals_var.user_now = self.username
+                globals_var.pass_now = self.password
+                conn.close()
+                print(globals_var.user_now)
+                print(globals_var.pass_now)
+                return True
+    def delete_profile_in_DB(self, username):
+        conn = sqlite3.connect("user and pass store.db")
+        cursor = conn.cursor()
+        # เริ่มลบ profile
+        # ลบ username และ password
+        cursor.execute("DELETE FROM user_and_password WHERE username = ?", (username,))
+        conn.commit()
+        conn.close()
+        return True
 
 class control_music:
-    # เก็บ path เพลง
-    current_song_path = None
-    # เก็บเพลงที่กำลังเล่น
-    music_playing = None 
-    player = QMediaPlayer()
-    audio_output = QAudioOutput()
-    player.setAudioOutput(audio_output)
-    # ตั้งค่าเสียง
-    audio_output.setVolume(50)
+    instance_control_music = None
+    def __new__(cls):
+        if cls.instance_control_music is None:
+            cls.instance_control_music = super(control_music, cls).__new__(cls)
+            # เก็บ path เพลง
+            cls.instance_control_music.current_song_path = None
+            # เก็บเพลงที่กำลังเล่น
+            cls.instance_control_music.music_playing = None 
+            cls.instance_control_music.player = QMediaPlayer()
+            cls.instance_control_music.audio_output = QAudioOutput()
+            # ทำให้ player สามารถควบคุมเพลงได้
+            cls.instance_control_music.player.setAudioOutput(cls.instance_control_music.audio_output)
+            # ตั้งค่าเสียง
+            cls.instance_control_music.audio_output.setVolume(1.0)
+            # เก็บ set_volum ของทุกหน้า
+            cls.volume_sliders = []
+        return cls.instance_control_music
+    
+    def register_slider(self, set_volum: QSlider):
+        self.volume_sliders.append(set_volum)
+        # ทำให้ set_volum ของทุกหน้ามีค่าเท่ากันของเสียงจริง
+        set_volum.setValue(int(self.audio_output.volume() * 100))
+        # เชื่อม set_volum เข้ากับฟังชั่น change_volum
+        set_volum.valueChanged.connect(lambda val: self.change_volum(val))
 
-    @classmethod
-    def check_music_playing(cls, song_path):
+    def change_volum(self, user_scoll_volum):
+        self.audio_output.setVolume(float(user_scoll_volum / 100.0))
+        # update set_volum ของทุกหน้าให้เท่ากัน
+        for slider in self.volume_sliders:
+            if slider.value() != user_scoll_volum:
+                slider.setValue(user_scoll_volum)
+
+    def check_music_playing(self, song_path):
         if not os.path.exists(song_path):
             # ไม่มีเพลงเล่น current_song_path เป็นเท็จ
-            cls.music_playing = False
-            cls.current_song_path = None
+            self.music_playing = False
+            self.current_song_path = None
             return
         # มีเพลงเล่น current_song_path เป็นจริง
-        cls.current_song_path = song_path
-        cls.music_playing = True
+        self.current_song_path = song_path
+        self.music_playing = True
 
     def play_selected_music(self, item):
         song_path = None
@@ -101,6 +204,55 @@ class control_music:
         self.player.setSource(QUrl.fromLocalFile(self.current_song_path))
         self.player.play()
 
+    def auto_update_music_playing(self, scoll):
+        player = self.player
+
+        player.durationChanged.connect(lambda long_music: scoll.setRange(0, long_music))
+        player.positionChanged.connect(scoll.setValue)
+        scoll.sliderReleased.connect(lambda: player.setPosition(scoll.value()))
+
+    def user_update_music_playing(self, user_scoll):
+        self.player.setPosition(user_scoll)
+
+    def setup_slider_control(self):
+        scoll = self.scoll_music
+        player = self.player
+
+        self.slider_dragging = False
+
+        # เริ่มลาก scoll
+        scoll.sliderPressed.connect(lambda: setattr(self, "slider_dragging", True))
+        # ปล่อย scoll
+        scoll.sliderReleased.connect(lambda: [
+        player.setPosition(scoll.value()),  # player กระโดด scoll ที่ user เลือก
+        setattr(self, "slider_dragging", False)])
+
+        player.positionChanged.connect(update_slider)
+        # อัปเดต scoll_music ตามเพลง เฉพาะเมื่อไม่ได้ลาก
+        def update_slider(pos):
+            if not self.slider_dragging:
+               scoll.setValue(pos)
+        # ตั้งค่า range ตามความยาวเพลง
+        player.durationChanged.connect(lambda duration: scoll.setRange(0, duration))
+
+    def user_restart_music(self):
+        if self.music_playing:
+            self.player.stop()
+            self.player.play()
+            self.music_playing = True
+
+    def user_play_music(self):
+        if not self.music_playing:
+           self.player.play()
+           self.music_playing = True
+
+    def user_stop_music(self):
+        if self.music_playing:
+           self.player.pause()
+           self.music_playing = False
+
+    def user_skip_music(self):
+        pass
 #แอปฟังเพลงของผมเอง
 class login_App_music(QDialog):
     def __init__(self, stacked_widget_login_page):
@@ -112,7 +264,6 @@ class login_App_music(QDialog):
         #ตั้งค่าปุ่มlogin กับ make_profile
         self.loginbutton.clicked.connect(self.loginfunction)
         self.make_profile.clicked.connect(self.Go_Create_profile)
-        self.loginbutton.clicked.connect(self.login_to_home)
         #ตั้งค่าขนาดหน้าจอ
         self.resize(1920, 1080)
         self.setMinimumSize(800, 600)
@@ -144,8 +295,10 @@ class login_App_music(QDialog):
     def loginfunction(self):
         username = self.username.text()
         password = self.password.text()
-        
-        QMessageBox.information(self, "Login info", f"Username: {username}\nPassword: {password}")
+        login_check = Control_Data_Store().login_check_username_and_password(username, password)
+
+        if  login_check:
+            self.login_to_home()
 
     def Go_Create_profile(self):
         #แสดงหน้า sign up
@@ -163,7 +316,7 @@ class Create_profile(QDialog):
         self.stacked_widget = stacked_widget_Create_profile  
 
         #ปุ่มตรวจสอบรหัสผ่าน
-        self.signup_button.clicked.connect(self.create_function)
+        self.signup_button.clicked.connect(self.create_profile)
         #ปุ่มเลือกภาพโปรไฟล์
         self.add_picture_pro.clicked.connect(self.add_picture_to_profile)
         #ปุ่มกลับหน้าล็อคอิน 
@@ -217,7 +370,7 @@ class Create_profile(QDialog):
            slider = edit_dialog.findChild(QSlider, "L_D_pickture")
 
            if graphics_view:
-              # ร้างQGraphicsScene
+              # สร้างQGraphicsScene
               scene = QGraphicsScene()
               #โหลดรูป
               original_pixmap = QPixmap(self.profile_image_path)
@@ -241,29 +394,24 @@ class Create_profile(QDialog):
         edit_dialog.setFixedSize(900, 600)
         edit_dialog.exec()
 
-    def create_function(self):
+    def create_profile(self):
         make_username = self.make_username.text()
-        if self.make_password.text() == self.confirm_password.text():
-            make_password = self.make_password.text()
-            print("sucess profile", make_username, "and password", make_password)
-            
-            #ไปdef after_sign_up
+        make_password = self.make_password.text()
+        confirm_password = self.confirm_password.text()
+        #เรียกใช้ฟังชั่น check_username
+        if Control_Data_Store().check_username(make_username, make_password, confirm_password):
+            QMessageBox.information(self, "Info", f"สร้างโปรไฟล์แล้ว ชื่อของคุณ {make_username}")
+            # ไปหน้า home_page
             self.after_sign_up()
-        else:
-            QMessageBox.warning(self, "Error", "Passwords do not match")
-            print("wrong password")
+
     
     #หลังจากลงทะเบียนแล้วก็ไปหน้าโฮมเลย
     def after_sign_up(self):
         self.stacked_widget.setCurrentIndex(2)
 
-#image_type = [".png", ".jpg", ".jpeg"]
-
-class Home_page(QMainWindow, control_music):
+class Home_page(QMainWindow):
     def __init__(self, stacked_widget_home_page):
         super().__init__()
-        # เรียก class control_music
-        control_music.__init__(self)
         uic.loadUi("music Home start.ui", self)
         #เก็บสแต็ก
         self.stacked_widget = stacked_widget_home_page
@@ -280,14 +428,39 @@ class Home_page(QMainWindow, control_music):
         # หา object music_you_add
         self.list_widget = self.findChild(QListWidget, "music_you_add")
         # เล่นเพลงเมื่อกด music_you_add
-        self.list_widget.itemClicked.connect(self.play_selected_music)
+        self.list_widget.itemClicked.connect(lambda item: control_music().play_selected_music(item))
 
 
-        #self.go_to_home.clicked.connect(self.)
         self.go_to_library.clicked.connect(self.home_to_library)
         self.go_to_setting.clicked.connect(self.home_to_setting)
         self.add_music.clicked.connect(lambda: self.add_music_file_to_list (self.list_widget, globals_var.music_list))
         self.edit_profile.clicked.connect(self.open_edit_profile_dialog)
+
+
+        #เลื่อนเพลงไปข้างหน้าและย้อนกลับ
+        self.scoll_music.sliderMoved.connect(lambda user_scoll: control_music().user_update_music_playing(user_scoll))
+
+        # ซิงค์เสียงให้เสียงเท่ากันทุกหน้า
+        control_music().register_slider(self.set_volum)
+        # ปรับระดับเสียง
+        self.set_volum.valueChanged.connect(lambda volum: control_music().change_volum(volum))
+
+        # เรียกใช้ฟังชั่น update_music_playing เพื่ออัปเดทว่าเพลงเล่นถึงไหนแล้ว
+        control_music().auto_update_music_playing(self.scoll_music)
+
+        # เริ่มเพลงใหม่ เชื่อม user_restart_music
+        self.start_music_again.clicked.connect(control_music().user_restart_music)
+
+        # เล่นเพลงต่อ play_music
+        self.play_music.clicked.connect(control_music().user_play_music)
+
+        # หยุดเพลง stop_music
+        self.stop_music.clicked.connect(control_music().user_stop_music)
+
+        # ข้ามเพลง skip_music
+        self.skip_music.clicked.connect(control_music().user_skip_music)
+
+
 
         self.bar_app.setFixedHeight(70)
 
@@ -380,6 +553,8 @@ class Home_page(QMainWindow, control_music):
     def add_music_file_to_list(self, list_widget, music_list):
         # ให้ผู้ใช้เลือกโฟลเดอร์
         folder_path = QFileDialog.getExistingDirectory(None, "เลือกโฟลเดอร์")
+        # เก็บ path โฟร์เดอร์เป็นสากล
+        globals_var.global_folder_path = folder_path
         if not folder_path:
            return  # ถ้าไม่เลือกอะไรเลย
         dup_music = []  # เก็บชื่อเพลงซ้ำ
@@ -419,11 +594,9 @@ class Home_page(QMainWindow, control_music):
     def home_to_setting(self):
        self.stacked_widget.setCurrentIndex(4)
 
-class library_page(QMainWindow, control_music):
+class library_page(QMainWindow):
     def __init__(self, stacked_widget_library_page):
         super().__init__()
-        # เรียก class control_music
-        control_music.__init__(self)
         uic.loadUi("music library.ui", self)
         #เก็บสแต็ก
         self.stacked_widget = stacked_widget_library_page
@@ -441,15 +614,38 @@ class library_page(QMainWindow, control_music):
         # หา object show_all_music
         self.list_widget = self.findChild(QListWidget, "show_all_music")
         # เล่นเพลงเมื่อกด show_all_music
-        self.list_widget.itemClicked.connect(self.play_selected_music)
+        self.list_widget.itemClicked.connect(lambda item: control_music().play_selected_music(item))
 
         # หา QListWidget ที่ชื่อ show_all_music จาก UI
         self.list_widget = self.findChild(QListWidget, "show_all_music")
 
         self.go_to_home.clicked.connect(self.library_to_home)
-        #self.go_to_library.clicked.connect(self.)
         self.go_to_setting.clicked.connect(self.library_to_setting)
         self.edit_profile.clicked.connect(self.open_edit_profile_dialog)
+        
+
+        #เลื่อนเพลงไปข้างหน้าและย้อนกลับ
+        self.scoll_music.sliderMoved.connect(lambda user_scoll: control_music().user_update_music_playing(user_scoll))
+
+        # ซิงค์เสียงให้เสียงเท่ากันทุกหน้า
+        control_music().register_slider(self.set_volum)
+        # ปรับระดับเสียง
+        self.set_volum.valueChanged.connect(lambda volum: control_music().change_volum(volum))
+
+        # เรียกใช้ฟังชั่น update_music_playing เพื่ออัปเดทว่าเพลงเล่นถึงไหนแล้ว
+        control_music().auto_update_music_playing(self.scoll_music)
+
+        # เริ่มเพลงใหม่ เชื่อม user_restart_music
+        self.start_music_again.clicked.connect(control_music().user_restart_music)
+
+        # เล่นเพลงต่อ play_music
+        self.play_music.clicked.connect(control_music().user_play_music)
+
+        # หยุดเพลง stop_music
+        self.stop_music.clicked.connect(control_music().user_stop_music)
+
+        # ข้ามเพลง skip_music
+        self.skip_music.clicked.connect(control_music().user_skip_music)
 
         self.bar_app.setFixedHeight(70)
 
@@ -567,8 +763,33 @@ class setting_page(QMainWindow):
 
         self.go_to_home.clicked.connect(self.setting_to_home)
         self.go_to_library.clicked.connect(self.setting_to_library)
-        #self.go_to_setting.clicked.connect(self.)
         self.edit_profile.clicked.connect(self.open_edit_profile_dialog)
+        self.del_profile.clicked.connect(self.delete_profile)
+
+
+        #เลื่อนเพลงไปข้างหน้าและย้อนกลับ
+        self.scoll_music.sliderMoved.connect(lambda user_scoll: control_music().user_update_music_playing(user_scoll))
+
+        # ซิงค์เสียงให้เสียงเท่ากันทุกหน้า
+        control_music().register_slider(self.set_volum)
+        # ปรับระดับเสียง
+        self.set_volum.valueChanged.connect(lambda volum: control_music().change_volum(volum))
+
+        # เรียกใช้ฟังชั่น update_music_playing เพื่ออัปเดทว่าเพลงเล่นถึงไหนแล้ว
+        control_music().auto_update_music_playing(self.scoll_music)
+
+        # เริ่มเพลงใหม่ เชื่อม user_restart_music
+        self.start_music_again.clicked.connect(control_music().user_restart_music)
+
+        # เล่นเพลงต่อ play_music
+        self.play_music.clicked.connect(control_music().user_play_music)
+
+        # หยุดเพลง stop_music
+        self.stop_music.clicked.connect(control_music().user_stop_music)
+
+        # ข้ามเพลง skip_music
+        self.skip_music.clicked.connect(control_music().user_skip_music)
+
 
         self.bar_app.setFixedHeight(70)
 
@@ -656,6 +877,16 @@ class setting_page(QMainWindow):
 
         # จัดตำแหน่ง mode_night
         self.mode_night.setGeometry(del_music_x, int(del_music_y + 160), 99, 20)
+
+        # จัดตำแหน่ง del_profile
+        self.del_profile.setGeometry(del_music_x, int(del_music_y + 300), 71, 32)
+
+    def delete_profile(self):
+        username = globals_var.user_now
+
+        check_del = Control_Data_Store().delete_profile_in_DB(username)
+        if check_del:
+            self.stacked_widget.setCurrentIndex(0)
 
     def open_edit_profile_dialog(self):
         open_edit = QDialog(self)

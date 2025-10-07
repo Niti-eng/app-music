@@ -292,7 +292,7 @@ font-size: 20px;</string>
       <string>ข้าม</string>
      </property>
     </widget>
-    <widget class="QSlider" name="horizontalSlider">
+    <widget class="QSlider" name="scoll_music">
      <property name="geometry">
       <rect>
        <x>180</x>
@@ -455,6 +455,23 @@ color: rgb(255, 0, 12);</string>
      <string>โหมดกลางคืน</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="del_profile">
+    <property name="geometry">
+     <rect>
+      <x>140</x>
+      <y>370</y>
+      <width>71</width>
+      <height>32</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(255, 255, 255);
+color: rgb(255, 14, 0);</string>
+    </property>
+    <property name="text">
+     <string>ลบโปรไฟล์</string>
+    </property>
+   </widget>
    <zorder>Right_bar</zorder>
    <zorder>bar_app</zorder>
    <zorder>down_bar</zorder>
@@ -468,6 +485,7 @@ color: rgb(255, 0, 12);</string>
    <zorder>text_mode</zorder>
    <zorder>mode_hot</zorder>
    <zorder>mode_night</zorder>
+   <zorder>del_profile</zorder>
   </widget>
  </widget>
  <resources/>

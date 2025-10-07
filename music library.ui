@@ -301,7 +301,7 @@ font-size: 20px;</string>
       <string>ข้าม</string>
      </property>
     </widget>
-    <widget class="QSlider" name="horizontalSlider">
+    <widget class="QSlider" name="scoll_music">
      <property name="geometry">
       <rect>
        <x>180</x>
