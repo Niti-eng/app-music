@@ -10,11 +10,11 @@ from mutagen.easyid3 import EasyID3
 
 from rx.subject import BehaviorSubject
 from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QListWidget, QFileDialog, QSlider, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy, QDialog, QStackedWidget, QMessageBox, QMainWindow, QGraphicsScene, QGraphicsPixmapItem, QGraphicsView, QGroupBox, QGraphicsRectItem
-from PyQt6.QtCore import Qt, QUrl, QTimer, QRect, QRectF, pyqtSignal
+from PyQt6.QtCore import Qt, QUrl, QTimer, QRect, QRectF, pyqtSignal, QSize
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6 import uic
-from PyQt6.QtGui import QPixmap, QColor, QImage, QPainter, QRadialGradient, QIcon, QPen, QFont
+from PyQt6.QtGui import QPixmap, QColor, QImage, QPainter, QRadialGradient, QIcon, QPen, QFont, QBitmap, QBrush
 
 class globals_var:
     # เก็บเพลงที่เอาเข้ามา ชั่วคราว
@@ -31,9 +31,6 @@ class globals_var:
     show_profile = None
     # เก็บ folder path เพลง
     global_folder_path = None
-
-    # ตัวแปรใช้ขณะสร้าง proflie ชั่วคราว
-    Create_profile_picture = None
 
     # ตัวแปรใช้เก็บตำแหน่งเพลง เพื่อให้รู้ว่ากำลังเล่นเพลงที่ตำแหน่งไหน
     index_music = None
@@ -155,7 +152,6 @@ class Control_Data_Store:
             # เก็บ path folder
             globals_var.global_folder_path = result
             print(globals_var.global_folder_path)
-        conn.commit()
         conn.close()
 
     def add_music_in_DB(self, music_list):
@@ -223,9 +219,12 @@ class Control_Data_Store:
                 cursor.execute("DELETE FROM music_path WHERE music_path = ?",(path_music,))
                 conn.commit()
                 QMessageBox.warning(None, "suces", f"ลบ{song_name}แล้ว")
+                conn.close()
                 return True
         if not found:
             QMessageBox.warning(None, "Error", f"ไม่เจอเพลงชื่อ {name_music}")
+            conn.close()
+            return False
         conn.close()
 
     def delete_all_music(self):
@@ -246,26 +245,18 @@ class Control_Data_Store:
         # แปลงเก็บใน music_list
         for row in rows:
             globals_var.music_list.append(row[1])
+        conn.close()
     
     def make_music_path_store(self, make_username):
-        conn = sqlite3.connect(f"{make_username} music path.db")
-        cursor = conn.cursor()
+        conn_ = sqlite3.connect(f"{make_username} music path.db")
+        cursor = conn_.cursor()
         # สร้างตารางเก็บ path เพลง
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS music_path (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         music_path TEXT NOT NULL ) """)
-        conn.commit()
-
-        # นำภาพจาก user and pass store ไปเก็บในตัวแปร show_profile
-        conn = sqlite3.connect("user and pass store.db")
-        cursor = conn.cursor()
-        cursor.execute("SELECT [proflie picture] FROM user_and_password WHERE username = ?", (make_username,))
-        result = cursor.fetchall()
-        picture_pro = result[0][0]
-        # เก็บภาพใน show_profile
-        globals_var.show_profile = picture_pro
-        conn.close()
+        conn_.commit()
+        conn_.close()
 
     # เช็คว่ามี username ซ้ำมั้ย
     def check_username(self, make_username, make_password, confirm_password):
@@ -278,33 +269,29 @@ class Control_Data_Store:
         self.all_username = [row[0] for row in rows]
         if make_username in self.all_username:
            QMessageBox.warning(None, "Error", f"ชื่อ {make_username} ซ้ำ")
+           conn.close()
            return False
         elif make_username == "":
             QMessageBox.warning(None, "Error", "ยังไม่ได้ใส่ชื่อ")
+            conn.close()
             return False
         # เช็คว่ารหัสมีอย่างน้อย8ตัวมั้ย
         if len(make_password) < 8:
             QMessageBox.warning(None, "Error", "รหัสผ่านต้องมีอย่างน้อย8ตัว")
+            conn.close()
             return False
         # ตรวจสอบว่ารหัสผ่านตรงกันมั้ย
         if make_password != confirm_password:
             QMessageBox.warning(None, "Error", "รหัสผ่านไม่ตรงกัน")
+            conn.close()
             return False
-        #เช็คว่าใส่โปรไฟล์ยัง
-        if not globals_var.Create_profile_picture:
-           QMessageBox.information(None, "error", "ยังไม่ได้ใส่รูปโปรไฟล์")
-           return False
-         # แปลง Create_profile_picture เป็น bytes ก่อนเก็บ
-        with open(globals_var.Create_profile_picture, "rb") as f:
-            image_bytes = f.read()
-        # เพิ่ม username กับ password และ Create_profile_picture ลงใน user and pass store.db
-        cursor.execute("INSERT INTO user_and_password (username, password, [proflie picture]) VALUES (?, ?, ?)", (make_username, make_password, image_bytes))
+        cursor.execute("INSERT INTO user_and_password (username, password) VALUES (?, ?)",(make_username, make_password))
         conn.commit()
+        conn.close()
         globals_var.user_now = make_username
         globals_var.pass_now = make_password
-        globals_var.show_profile = image_bytes
-        conn.close()
         print(globals_var.user_now)
+        print(globals_var.pass_now)
         self.make_music_path_store(make_username)
         return True
     
@@ -332,6 +319,7 @@ class Control_Data_Store:
         if self.username in self.all_username:
             if not self.password:
                QMessageBox.warning(None, "Error", "กรุณาใส่รหัสผ่านด้วย")
+               conn.close()
                return False
             # ดึงรหัสมาตรวจดู
             cursor.execute("SELECT password FROM user_and_password WHERE username = ?", (self.username,))
@@ -351,16 +339,7 @@ class Control_Data_Store:
                 Control_Data_Store.read_path_folder()
                 print(globals_var.user_now)
                 print(globals_var.pass_now)
-                
-                # นำภาพจาก user and pass store ไปเก็บในตัวแปร show_profile
-                cursor.execute("SELECT [proflie picture] FROM user_and_password WHERE username = ?", (globals_var.user_now,))
-                result = cursor.fetchall()
-                picture_pro = result[0][0]
-                conn.commit()
                 conn.close()
-                # เก็บภาพใน show_profile
-                globals_var.show_profile = picture_pro
-                print(f"show_profile is {repr(bytes(globals_var.show_profile)[:10])}")
 
                 # เอา path เพลงไปเก็บใน music_list
                 if not globals_var.music_list:
@@ -374,7 +353,6 @@ class Control_Data_Store:
         # ลบ username และ password
         cursor.execute("DELETE FROM user_and_password WHERE username = ?", (username,))
         conn.commit()
-        conn.close()
         # ถ้ามีการเชื่อต่อฐานข้อมูลให้ปิด
         if conn:
             conn.close()
@@ -384,7 +362,6 @@ class Control_Data_Store:
            return True
         else:
             return False
-        return True
 
 class control_music:
     instance_control_music = None
@@ -624,8 +601,6 @@ class Create_profile(QDialog):
 
         #ปุ่มสร้างโปรไฟล์
         self.signup_button.clicked.connect(self.create_profile)
-        #ปุ่มเลือกภาพโปรไฟล์
-        self.add_picture_pro.clicked.connect(self.edit_picture_to_profile)
         #ปุ่มกลับหน้าล็อคอิน 
         self.back_to_login.clicked.connect(self.go_back_to_login)
 
@@ -658,69 +633,6 @@ class Create_profile(QDialog):
         self.confirm_password.clear()
         self.stacked_widget.setCurrentIndex(0)
 
-    def edit_picture_to_profile(self):
-        edit_dialog = QDialog(self)
-        uic.loadUi("sign up edit profile.ui", edit_dialog)
-        edit_dialog.setFixedSize(900, 600)
-        # หา widget ต่างๆจากใน edit_dialog
-        select = edit_dialog.findChild(QPushButton, "selec_picture")
-        view = edit_dialog.findChild(QGraphicsView, "edit_profile")
-        send = edit_dialog.findChild(QPushButton, "sumit_profile")
-        # ปุ่มเลือกภาพ profile
-        select.clicked.connect(lambda: self.look_picture(edit_dialog, view, send))
-        edit_dialog.exec()
-    # เปิดโฟรเดอร์เลือกไฟล์
-    def look_picture(self, edit_dialog, view, send):
-        # เปิดไฟล์เลือกภาพ
-        file_name, _ = QFileDialog.getOpenFileName (
-        self,
-        "Select Profile Picture",
-        "",
-        "Images (*.png *.jpg *.jpeg)"   )
-            
-        if not file_name:
-            return False
-        
-        if file_name:
-            # เก็บ path ของภาพลง Create_profile_picture
-            globals_var.Create_profile_picture = file_name
-            # แสดงภาพใน edit_profile
-            pixmap = QPixmap(globals_var.Create_profile_picture)
-            screen = QGraphicsScene()
-            screen.addPixmap(pixmap)
-            view.setScene(screen)
-            # ปรับขนาดให้พอดี
-            view.fitInView(screen.itemsBoundingRect(), Qt.AspectRatioMode.KeepAspectRatio)
-
-            # กด sumit_profile เพื่อส่งภาพ
-            send.clicked.connect(lambda: self.show_picture_profile_in_picture_pro_box(pixmap, edit_dialog))
-    
-    def show_picture_profile_in_picture_pro_box(self, pixmap, edit_dialog):
-        # แสดงภาพใน picture_pro_box
-        # เอาขอบ picture_pro_box ออก
-        self.picture_pro_box.setStyleSheet("border: none;")
-        # ดึง layout มาตรวจสอบว่ามีของเก่ามั้ย
-        layout = self.picture_pro_box.layout()
-        if layout is None:
-            layout = QVBoxLayout(self.picture_pro_box)
-            self.picture_pro_box.setLayout(layout)
-        elif layout is not None:
-            # ลบ widget เก่าออกก่อน
-            child = layout.takeAt(0)
-            if child.widget():
-               child.widget().deleteLater()
-
-        # สร้าง QLabel สำหรับแสดงภาพ
-        label = QLabel(self)
-         # กำหนดขนาด QLabel เป็น 200x200
-        label.setFixedSize(200, 200)
-        label.setPixmap(pixmap.scaled(200, 200,Qt.AspectRatioMode.KeepAspectRatio,Qt.TransformationMode.SmoothTransformation))
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # เพิ่ม QLabel ลงใน layout
-        layout.addWidget(label)
-        # ปิดหน้าต่าง
-        edit_dialog.close()
-
     def create_profile(self):
         make_username = self.make_username.text()
         make_password = self.make_password.text()
@@ -750,6 +662,7 @@ class Home_page(QMainWindow):
         self.play_music_box.setParent(self.centralWidget())
         self.artis_name_song.setParent(self.centralWidget())
         self.out_profile.setParent(self.centralWidget())
+        self.show_user.setParent(self.centralWidget())
 
         # หา object music_you_add
         self.list_widget = self.findChild(QListWidget, "music_you_add")
@@ -760,8 +673,6 @@ class Home_page(QMainWindow):
         self.go_to_library.clicked.connect(self.home_to_library)
         self.go_to_setting.clicked.connect(self.home_to_setting)
         self.add_music.clicked.connect(lambda: self.add_music_file_to_list (self.list_widget, globals_var.music_list))
-        self.edit_profile.clicked.connect(self.open_edit_profile_dialog)
-
 
         #เลื่อนเพลงไปข้างหน้าและย้อนกลับ
         self.scoll_music.sliderMoved.connect(lambda user_scoll: control_music().user_update_music_playing(user_scoll))
@@ -848,6 +759,17 @@ class Home_page(QMainWindow):
            self.artis_name_song.setText("artist")
         # เปลี่ยนชื่อศิลปินทุกครั้งที่ตัวแปร check_index_music เปลี่ยน
         globals_var.check_index_music.subscribe(lambda check_index_music: globals_var.update_artis_name_song(check_index_music, self.artis_name_song))
+
+        # จัดตำแหน่ง show_user
+        show_user_top = 10
+        show_user_w = 50
+        show_user_right = 100
+        show_user_y = show_user_top
+        show_user_x = self.width() - show_user_w - show_user_right
+        self.show_user.setGeometry(int(show_user_x - 30), int(show_user_y + 15), 71, 16)
+        size.setPointSize(14)
+        # กำหนดข้อความ show_user
+        self.show_user.setText(globals_var.user_now)
       
         # จัดตำแหน่ง play_music_box
         play_music_box_w = int(self.width() - 521) // 2
@@ -862,29 +784,15 @@ class Home_page(QMainWindow):
 
         # จัดตำแหน่ง music_you_add
         music_you_add_w = int(self.width() * 0.35 - 25)
-        self.music_you_add.setGeometry( int(add_music_x - 35), 175, music_you_add_w, 51)
-
-        # จัดตำแหน่ง edit_profile
-        margin_right = 100
-        margin_top = 10
-        button_w = 50
-        button_h = 50
-        edit_profile_x = self.width() - button_w - margin_right
-        edit_profile_y = margin_top
-        self.edit_profile.setGeometry( edit_profile_x, edit_profile_y, button_w, button_h)
-        # ทำให้ปุ่มเป็นวงกลม
-        self.edit_profile.setStyleSheet(f"""
-        QPushButton {{
-        border-radius: {button_w // 2}px;  /*ครึ่งหนึ่งของความกว้าง*/
-        background-color: #e74c3c;         /*สีพื้นหลัง*/
-        border: 0.5px solid #85c1e9;        /*ขอบ*/
-        }}
-           """)
-        # ใส่ภาพให้ edit_profile
-        
+        self.music_you_add.setGeometry( int(add_music_x - 35), 175, music_you_add_w, 400)
 
         # จัดตำแหน่ง out_profile
-        self.out_profile.setGeometry( int(edit_profile_x + 50), int(edit_profile_y + 10), 100, 32)
+        margin_top = 10
+        button_w = 50
+        margin_right = 100
+        out_profile_y = margin_top
+        out_profile_x = self.width() - button_w - margin_right
+        self.out_profile.setGeometry( int(out_profile_x + 50), int(out_profile_y + 10), 100, 32)
 
         # จัดตำแหน่ง text_flie_type
         self.text_flie_type.setGeometry( int(add_music_x + 80), 80, 181, 16)
@@ -951,11 +859,6 @@ class Home_page(QMainWindow):
             where_item = self.list_widget.row(item)
             self.list_widget.takeItem(where_item)
 
-    def open_edit_profile_dialog(self):
-        open_edit = QDialog(self)
-        uic.loadUi("sign up edit profile.ui", open_edit)
-        open_edit.exec()
-
     def home_to_library(self):
         library.update_music_list()
         self.stacked_widget.setCurrentIndex(3)
@@ -966,10 +869,8 @@ class Home_page(QMainWindow):
     def home_to_loging(self):
         globals_var.user_now = None
         globals_var.pass_now = None
-        globals_var.show_profile = None
         print(f" user is {globals_var.user_now}")
         print(f" pass is {globals_var.pass_now}")
-        print(f"picture_pro is {globals_var.show_profile}")
         self.stacked_widget.setCurrentIndex(0)
 
 class library_page(QMainWindow):
@@ -986,8 +887,8 @@ class library_page(QMainWindow):
         self.name_song.setParent(self.centralWidget())
         self.play_music_box.setParent(self.centralWidget())
         self.artis_name_song.setParent(self.centralWidget())
-        self.edit_profile.setParent(self.centralWidget())
         self.out_profile.setParent(self.centralWidget())
+        self.show_user.setParent(self.centralWidget())
 
         # หา object show_all_music
         self.list_widget = self.findChild(QListWidget, "show_all_music")
@@ -999,8 +900,6 @@ class library_page(QMainWindow):
 
         self.go_to_home.clicked.connect(self.library_to_home)
         self.go_to_setting.clicked.connect(self.library_to_setting)
-        self.edit_profile.clicked.connect(self.open_edit_profile_dialog)
-        
 
         #เลื่อนเพลงไปข้างหน้าและย้อนกลับ
         self.scoll_music.sliderMoved.connect(lambda user_scoll: control_music().user_update_music_playing(user_scoll))
@@ -1026,7 +925,7 @@ class library_page(QMainWindow):
         self.skip_music.clicked.connect(control_music().user_skip_music)
 
         # ออกจากโปรไฟล์ out_profile
-        self.out_profile.clicked.connect(self.home_to_loging)
+        self.out_profile.clicked.connect(self.library_to_loging)
 
         self.bar_app.setFixedHeight(70)
 
@@ -1098,6 +997,17 @@ class library_page(QMainWindow):
         # เปลี่ยนชื่อศิลปินทุกครั้งที่ตัวแปร check_index_music เปลี่ยน
         globals_var.check_index_music.subscribe(lambda check_index_music: globals_var.update_artis_name_song(check_index_music, self.artis_name_song))
 
+        # จัดตำแหน่ง show_user
+        show_user_top = 10
+        show_user_w = 50
+        show_user_right = 100
+        show_user_y = show_user_top
+        show_user_x = self.width() - show_user_w - show_user_right
+        self.show_user.setGeometry(int(show_user_x - 30), int(show_user_y + 15), 71, 16)
+        size.setPointSize(14)
+        # กำหนดข้อความ show_user
+        self.show_user.setText(globals_var.user_now)
+
         # จัดตำแหน่ง play_music_box
         play_music_box_w = int(self.width() - 521) // 2
         self.play_music_box.setGeometry(int(play_music_box_w), int(down_bar_y + 5), 521, 91)
@@ -1110,26 +1020,14 @@ class library_page(QMainWindow):
         show_all_music_w = int(self.width() * 1 - 650)
         show_all_music_h = int(self.height() * 1 - 300)
         self.show_all_music.setGeometry(t_show_all_music_x, 120, show_all_music_w, show_all_music_h)
-
-        # จัดตำแหน่ง edit_profile
-        margin_right = 100
-        margin_top = 10
-        button_w = 50
-        button_h = 50
-        edit_profile_x = self.width() - button_w - margin_right
-        edit_profile_y = margin_top
-        self.edit_profile.setGeometry( edit_profile_x, edit_profile_y, button_w, button_h)
-        # ทำให้ปุ่มเป็นวงกลม
-        self.edit_profile.setStyleSheet(f"""
-        QPushButton {{
-        border-radius: {button_w // 2}px;  /*ครึ่งหนึ่งของความกว้าง*/
-        background-color: #e74c3c;         /*สีพื้นหลัง*/
-        border: 0.5px solid #85c1e9;        /*ขอบ*/
-        }}
-           """)
         
         # จัดตำแหน่ง out_profile
-        self.out_profile.setGeometry( int(edit_profile_x + 50), int(edit_profile_y + 10), 100, 32)
+        margin_top = 10
+        button_w = 50
+        margin_right = 100
+        out_profile_y = margin_top
+        out_profile_x = self.width() - button_w - margin_right
+        self.out_profile.setGeometry( int(out_profile_x + 50), int(out_profile_y + 10), 100, 32)
 
         # จัดตำแหน่ง set_volum
         set_volum_w = int(self.width() * 0.08)
@@ -1146,11 +1044,6 @@ class library_page(QMainWindow):
             where_item = self.list_widget.row(item)
             self.list_widget.takeItem(where_item)
 
-    def open_edit_profile_dialog(self):
-        open_edit = QDialog(self)
-        uic.loadUi("sign up edit profile.ui", open_edit)
-        open_edit.exec()
-
     def library_to_home(self):
         Home.de_item_when_music_list_space()
         self.stacked_widget.setCurrentIndex(2)
@@ -1158,13 +1051,11 @@ class library_page(QMainWindow):
     def library_to_setting(self):
         self.stacked_widget.setCurrentIndex(4)
 
-    def home_to_loging(self):
+    def library_to_loging(self):
         globals_var.user_now = None
         globals_var.pass_now = None
-        globals_var.pic_pro = None
         print(f" user is {globals_var.user_now}")
         print(f" pass is {globals_var.pass_now}")
-        print(f"picture_pro is {globals_var.show_profile}")
         self.stacked_widget.setCurrentIndex(0)
 
 class setting_page(QMainWindow):
@@ -1180,12 +1071,11 @@ class setting_page(QMainWindow):
         self.name_song.setParent(self.centralWidget())
         self.play_music_box.setParent(self.centralWidget())
         self.artis_name_song.setParent(self.centralWidget())
-        self.edit_profile.setParent(self.centralWidget())
         self.out_profile.setParent(self.centralWidget())
+        self.show_user.setParent(self.centralWidget())
 
         self.go_to_home.clicked.connect(self.setting_to_home)
         self.go_to_library.clicked.connect(self.setting_to_library)
-        self.edit_profile.clicked.connect(self.open_edit_profile_dialog)
         self.del_profile.clicked.connect(self.delete_profile)
 
 
@@ -1213,7 +1103,7 @@ class setting_page(QMainWindow):
         self.skip_music.clicked.connect(control_music().user_skip_music)
 
         # ออกจากโปรไฟล์ out_profile
-        self.out_profile.clicked.connect(self.home_to_loging)
+        self.out_profile.clicked.connect(self.setting_to_loging)
 
         # เชื่อมปุ่ม del_music_all
         self.del_music_all.clicked.connect(Control_Data_Store().delete_all_music)
@@ -1271,6 +1161,17 @@ class setting_page(QMainWindow):
         # เปลี่ยนชื่อศิลปินทุกครั้งที่ตัวแปร check_index_music เปลี่ยน
         globals_var.check_index_music.subscribe(lambda check_index_music: globals_var.update_artis_name_song(check_index_music, self.artis_name_song))
 
+        # จัดตำแหน่ง show_user
+        show_user_top = 10
+        show_user_w = 50
+        show_user_right = 100
+        show_user_y = show_user_top
+        show_user_x = self.width() - show_user_w - show_user_right
+        self.show_user.setGeometry(int(show_user_x - 30), int(show_user_y + 15), 71, 16)
+        size.setPointSize(14)
+        # กำหนดข้อความ show_user
+        self.show_user.setText(globals_var.user_now)
+
         # จัดตำแหน่ง play_music_box
         play_music_box_w = int(self.width() - 521) // 2
         self.play_music_box.setGeometry(int(play_music_box_w), int(down_bar_y + 5), 521, 91)
@@ -1283,26 +1184,14 @@ class setting_page(QMainWindow):
         y = 5
         #แสดงเมนู
         self.manu_box.setGeometry(x, y, manu_box_w, manu_box_h)
-
-        # จัดตำแหน่ง edit_profile
-        margin_right = 100
-        margin_top = 10
-        button_w = 50
-        button_h = 50
-        edit_profile_x = self.width() - button_w - margin_right
-        edit_profile_y = margin_top
-        self.edit_profile.setGeometry( edit_profile_x, edit_profile_y, button_w, button_h)
-        # ทำให้ปุ่มเป็นวงกลม
-        self.edit_profile.setStyleSheet(f"""
-        QPushButton {{
-        border-radius: {button_w // 2}px;  /*ครึ่งหนึ่งของความกว้าง*/
-        background-color: #e74c3c;         /*สีพื้นหลัง*/
-        border: 0.5px solid #85c1e9;        /*ขอบ*/
-        }}
-           """)
         
         # จัดตำแหน่ง out_profile
-        self.out_profile.setGeometry( int(edit_profile_x + 50), int(edit_profile_y + 10), 100, 32)
+        margin_top = 10
+        button_w = 50
+        margin_right = 100
+        out_profile_y = margin_top
+        out_profile_x = self.width() - button_w - margin_right
+        self.out_profile.setGeometry( int(out_profile_x + 50), int(out_profile_y + 10), 100, 32)
 
         # จัดตำแหน่ง set_volum
         set_volum_w = int(self.width() * 0.08)
@@ -1333,11 +1222,6 @@ class setting_page(QMainWindow):
               self.stacked_widget.setCurrentIndex(0)
         elif awer == QMessageBox.StandardButton.No:
             return False
-
-    def open_edit_profile_dialog(self):
-        open_edit = QDialog(self)
-        uic.loadUi("sign up edit profile.ui", open_edit)
-        open_edit.exec()
     
     def setting_to_home(self):
         Home.de_item_when_music_list_space()
@@ -1347,13 +1231,11 @@ class setting_page(QMainWindow):
         library.update_music_list()
         self.stacked_widget.setCurrentIndex(3)
 
-    def home_to_loging(self):
+    def setting_to_loging(self):
         globals_var.user_now = None
         globals_var.pass_now = None
-        globals_var.pic_pro = None
         print(f" user is {globals_var.user_now}")
         print(f" pass is {globals_var.pass_now}")
-        print(f"picture_pro is {globals_var.show_profile}")
         self.stacked_widget.setCurrentIndex(0)
 
 

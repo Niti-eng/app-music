@@ -93,6 +93,22 @@
       </property>
      </widget>
     </widget>
+    <widget class="QLabel" name="show_user">
+     <property name="geometry">
+      <rect>
+       <x>610</x>
+       <y>30</y>
+       <width>71</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: rgb(0, 0, 0, 0);</string>
+     </property>
+     <property name="text">
+      <string>user</string>
+     </property>
+    </widget>
    </widget>
    <widget class="QFrame" name="down_bar">
     <property name="enabled">
@@ -213,22 +229,6 @@
     </property>
     <property name="text">
      <string>เพลงทั้งหมด</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="edit_profile">
-    <property name="geometry">
-     <rect>
-      <x>710</x>
-      <y>20</y>
-      <width>100</width>
-      <height>100</height>
-     </rect>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">background-color: rgb(255, 212, 208);</string>
-    </property>
-    <property name="text">
-     <string/>
     </property>
    </widget>
    <widget class="QLabel" name="text_set_volum">
@@ -386,7 +386,6 @@ color: rgb(255, 26, 0);</string>
    <zorder>down_bar</zorder>
    <zorder>show_all_music</zorder>
    <zorder>t_show_all_music</zorder>
-   <zorder>edit_profile</zorder>
    <zorder>text_set_volum</zorder>
    <zorder>set_volum</zorder>
    <zorder>play_music_box</zorder>

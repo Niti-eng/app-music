@@ -96,20 +96,20 @@
       </property>
      </widget>
     </widget>
-    <widget class="QPushButton" name="edit_profile">
+    <widget class="QLabel" name="show_user">
      <property name="geometry">
       <rect>
-       <x>570</x>
-       <y>-30</y>
-       <width>100</width>
-       <height>100</height>
+       <x>600</x>
+       <y>30</y>
+       <width>71</width>
+       <height>16</height>
       </rect>
      </property>
      <property name="styleSheet">
-      <string notr="true">background-color: rgb(255, 212, 208);</string>
+      <string notr="true">background-color: rgb(0, 0, 0, 0);</string>
      </property>
      <property name="text">
-      <string/>
+      <string>user</string>
      </property>
     </widget>
    </widget>

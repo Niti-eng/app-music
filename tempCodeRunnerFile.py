@@ -1,1 +1,1 @@
-    cursor.executemany("INSERT INTO music_path (music_path) VALUES (?)", new_path)
+make_password

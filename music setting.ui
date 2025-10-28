@@ -93,6 +93,22 @@
       </property>
      </widget>
     </widget>
+    <widget class="QLabel" name="show_user">
+     <property name="geometry">
+      <rect>
+       <x>600</x>
+       <y>40</y>
+       <width>71</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: rgb(0, 0, 0, 0);</string>
+     </property>
+     <property name="text">
+      <string>user</string>
+     </property>
+    </widget>
    </widget>
    <widget class="QFrame" name="down_bar">
     <property name="enabled">
@@ -188,22 +204,6 @@
       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;ศิลปิน&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
     </widget>
-   </widget>
-   <widget class="QPushButton" name="edit_profile">
-    <property name="geometry">
-     <rect>
-      <x>700</x>
-      <y>40</y>
-      <width>100</width>
-      <height>100</height>
-     </rect>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">background-color: rgb(255, 212, 208);</string>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
    </widget>
    <widget class="QSlider" name="set_volum">
     <property name="geometry">
@@ -409,7 +409,6 @@ color: rgb(255, 26, 0);</string>
    <zorder>Right_bar</zorder>
    <zorder>bar_app</zorder>
    <zorder>down_bar</zorder>
-   <zorder>edit_profile</zorder>
    <zorder>set_volum</zorder>
    <zorder>text_set_volum</zorder>
    <zorder>del_music_all</zorder>
