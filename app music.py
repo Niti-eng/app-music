@@ -1,14 +1,20 @@
 
 import sqlite3
-import sys, random
+import sys, random, time
 import os
-import queue
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QListWidget, QFileDialog, QSlider, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy, QDialog, QStackedWidget, QMessageBox, QMainWindow, QGraphicsScene, QGraphicsPixmapItem, QGraphicsView, QGroupBox
-from PyQt6.QtCore import Qt, QUrl, QTimer, QRect
+
+from mutagen import File
+from mutagen.mp3 import MP3
+from mutagen.id3 import ID3, APIC, TPE1
+from mutagen.easyid3 import EasyID3
+
+from rx.subject import BehaviorSubject
+from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QListWidget, QFileDialog, QSlider, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy, QDialog, QStackedWidget, QMessageBox, QMainWindow, QGraphicsScene, QGraphicsPixmapItem, QGraphicsView, QGroupBox, QGraphicsRectItem
+from PyQt6.QtCore import Qt, QUrl, QTimer, QRect, QRectF, pyqtSignal
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6 import uic
-from PyQt6.QtGui import QPixmap, QColor, QImage, QPainter, QRadialGradient, QIcon
+from PyQt6.QtGui import QPixmap, QColor, QImage, QPainter, QRadialGradient, QIcon, QPen, QFont
 
 class globals_var:
     # เก็บเพลงที่เอาเข้ามา ชั่วคราว
@@ -21,10 +27,102 @@ class globals_var:
     user_now = None
     # เก็บรหัสผ่านของ profile นี้
     pass_now = None
-    # เก็บ folder path
+    # ตัวแปรที่ใช้แสดง ภาพ proflie ขณะใช้
+    show_profile = None
+    # เก็บ folder path เพลง
     global_folder_path = None
-    # โหมดเริ่มต้น
-    start_mode = None
+
+    # ตัวแปรใช้ขณะสร้าง proflie ชั่วคราว
+    Create_profile_picture = None
+
+    # ตัวแปรใช้เก็บตำแหน่งเพลง เพื่อให้รู้ว่ากำลังเล่นเพลงที่ตำแหน่งไหน
+    index_music = None
+
+    # เก็บเวลากดปุ่มครั้งแรก
+    first_press = 0
+    # กำหนดเวลาสำหรับ double_click
+    double_click = 0.3
+
+    # ตัวแปรสำหรับเช็คค่า index_music เมื่อมีการเปลี่ยนแปลง
+    check_index_music = BehaviorSubject(0)
+    # อัปเดท name_song เมื่อค่ามีการเปลี่ยน
+    def update_name_song(check_index_music, name_song):
+        if check_index_music == globals_var.index_music:
+           # สร้างตัวแปรสำหรับปรับขนาดของ name_song
+           size = QFont()
+           # แสดงชื่อเพลง
+           size.setPointSize(20)
+           name_song.setFont(size)
+           # กำหนดข้อความ name_song โดยเอามาแค่ชื่อเพลง
+           name_song.setText(os.path.splitext(globals_var.music_history[globals_var.index_music])[0])
+
+    # ตัวแปรเก็บค่าชื่อของศิลปิน
+    artist_name = None
+    # อัปเดท artis_name_song เมื่อค่ามีการเปลี่ยน
+    def update_artis_name_song(check_index_music, artis_name_song):
+        if check_index_music == globals_var.index_music:
+           # สร้างตัวแปรสำหรับปรับขนาดของ name_song
+           size = QFont()
+           # แสดงชื่อศิลปิน
+           size.setPointSize(15)
+           artis_name_song.setFont(size)
+           # ใช้สำหรับเข้าอ่านเมต้าดาต้าของเพลงนั้นๆ
+           path_music = os.path.join(globals_var.global_folder_path ,globals_var.music_history[globals_var.index_music])
+           print(path_music)
+           # ตรวจว่าเป็นไฟล์ mp3 หรือ wav ก่อนอ่านเมต้าดาต้า
+           if path_music.lower().endswith(".mp3"):
+               # เก็บเมต้าดาต้าของเพลง
+               meta_music = EasyID3(path_music)
+               # เก็บชื่อศิลปิน
+               artist = meta_music.get("artist", ["Unknown Artist"])[0]
+               print(f"artist is {artist}")
+               # แสดงชื่อศิลปิน
+               size.setPointSize(15)
+               artis_name_song.setFont(size)
+               # แสดงชื่อศิลปิน
+               artis_name_song.setText(artist)
+           elif path_music.lower().endswith(".wav"):
+               meta_music = File(path_music)
+               artist = meta_music.get("artist", ["Unknow Artist"])[0]
+               size.setPointSize(15)
+               artis_name_song.setFont(size)
+               # แสดงชื่อศิลปิน
+               artis_name_song.setText(artist)
+
+    # อัปเดท Media(ปกเพลง) เมื่อค่ามีการเปลี่ยน
+    def update_Media(check_index_music, Media):
+        if check_index_music == globals_var.index_music:
+            # ใช้สำหรับเข้าอ่านเมต้าดาต้าของเพลงนั้นๆ
+           path_music = os.path.join(globals_var.global_folder_path ,globals_var.music_history[globals_var.index_music])
+           print(path_music)
+
+           # ตรวจว่าเป็นไฟล์ mp3 หรือ wav ก่อนอ่านเมต้าดาต้า
+           if path_music.lower().endswith(".mp3"):
+              # เก็บข้อมูลเมต้าของเพลง
+              meta_music = ID3(path_music)
+              apic_picture = meta_music.getall("APIC")
+              # แสดงภาพถ้ามี
+              if apic_picture:
+                 # เก็บภาพเป็น ไบ
+                 show_picture_music = apic_picture[0].data
+
+                 # ลบ layout เก่าออกถ้ามี
+                 if Media.layout() is not None:
+                    QWidget().setLayout(Media.layout())
+
+                 # โหลดภาพจาก show_picture_music
+                 pixmap = QPixmap()
+                 pixmap.loadFromData(show_picture_music)
+                 pixma_sc = pixmap.scaled(Media.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                 # แสดงภาพใน Media
+                 lebel = QLabel(Media)
+                 # จัดตรงกลาง
+                 lebel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                 lebel.setPixmap(pixma_sc)
+                 layout = QVBoxLayout(Media)
+                 layout.addWidget(lebel)
+           elif path_music.lower().endswith(".wav"):
+               return True
 
 class Control_Data_Store:
     instance_Control_Data_Store = None
@@ -37,39 +135,140 @@ class Control_Data_Store:
             cls.all_music_profile = []
         return cls.instance_Control_Data_Store
     
-    # สร้างฐานข้อมูล profile ที่ผู้ใช้สร้าง
-    def store_profile(self):
-        self.user = globals_var.user_now
-        self.password = globals_var.pass_now
-        self.folder_path = globals_var.global_folder_path
-        self.mode = globals_var.start_mode
-
-        profile_store = f"{self.user}_profile_store.db"
-        # เชื่อฐายข้อมล
-        conn = sqlite3.connect(profile_store)
+    def update_path_folder():
+        conn = sqlite3.connect("user and pass store.db")
         cursor = conn.cursor()
-        # สร้างตาราง profile
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS profile_info (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT,
-            password TEXT,
-            music_folder_path TEXT,
-            mode TEXT)  """)
-         # เพิ่มข้อมูล
-        cursor.execute("""INSERT INTO profile_info (username, password, music_folder_path, mode)VALUES (?, ?, ?, ?)""", (self.user, self.password, self.folder_path, self.mode))
+        # อัปข้อมูลของ path folder ใน db
+        cursor.execute("UPDATE user_and_password SET folder_path = ? WHERE username = ?", (globals_var.global_folder_path, globals_var.user_now))
         conn.commit()
         conn.close()
-        return True
-        pass
+
+    def read_path_folder():
+        conn = sqlite3.connect("user and pass store.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT folder_path FROM user_and_password WHERE username = ?", (globals_var.user_now,))
+        # ดึง folder_path มาเก็บ
+        folder_path_keep = cursor.fetchone()
+        # แปลงข้อมูลเป็น str
+        if folder_path_keep:
+            result = folder_path_keep[0]
+            # เก็บ path folder
+            globals_var.global_folder_path = result
+            print(globals_var.global_folder_path)
+        conn.commit()
+        conn.close()
+
+    def add_music_in_DB(self, music_list):
+        conn = sqlite3.connect(f"{globals_var.user_now} music path.db")
+        cursor = conn.cursor()
+
+        # ตรวจสอบว่ามีข้อมูลในตาราง music_path มั้ย
+        cursor.execute("SELECT COUNT(*) FROM music_path")
+        count = cursor.fetchone()[0]
+
+        if count == 0:
+           for path in music_list:
+               cursor.execute("INSERT INTO music_path (music_path) VALUES (?)", (path,))
+        
+        elif count != 0 :
+           # เก็บ path เพลง ใหม่ที่ถูกเพิ่มเข้ามา
+           new_path = []
+           # ดึง path เพลงออกมาตรวจ
+           for path in music_list:
+               cursor.execute("SELECT 1 FROM music_path WHERE music_path = ?", (path,))
+               # เพิ่ม path เพลงที่ยังไม่มี ลงใน new_path
+               if not cursor.fetchall():
+                  new_path.append((path,))
+            # เพิ่ม new_path ลง DB
+           if new_path:
+              cursor.executemany("INSERT INTO music_path (music_path) VALUES (?)", new_path)
+        conn.commit()
+        conn.close()
+
+    def delete_some_music(self):
+        show_de = QDialog()
+        uic.loadUi("delete some music .ui", show_de)
+        show_de.setFixedSize(866, 165) 
+        # อ่าน name_music_de เมื่อผู้ใช้กดปุ่ม summit_de_music ไปที่ฟังชั่น delete_music
+        show_de.summit_de_music.clicked.connect(lambda: self.delete_music(show_de.name_music_de.text()))
+        # แสดงหน้าต่าง
+        show_de.exec()
+    # ลบเพลง
+    def delete_music(self, name_music):
+        # ดูว่าผู้ใช้ได้ส่งชื่อเพลงมามั้ย
+        if name_music == "":
+            QMessageBox.warning(None, "Error", "ใส่ชื่อเพลงด้วย")
+            return False
+        conn = sqlite3.connect(f"{globals_var.user_now} music path.db")
+        cursor = conn.cursor()
+
+        # ใช้ตรวจว่าเจอเพลงมั้ย
+        found = False
+        # หาชื่อเพลงที่ตรงกัน
+        for path_music in globals_var.music_list:
+            # เก็บชื่อเพลง เอามาแค่ชื่อไม่มีนาสกุล
+            song_name = os.path.splitext(os.path.basename(path_music))[0]
+            # เก็บชื่อเพลงแบบมีนามสกุล สำหรับลบการแสดงเพลงในหน้า บ้าน และ ห้องสมุด
+            name_de = os.path.basename(path_music)
+            # เช็คว่าชื่อเพลงตรงกับที่กรอกมั้ย
+            if song_name == name_music:
+                print(path_music)
+                print(name_de)
+                # ลบ path ใน music_list
+                globals_var.music_list.remove(path_music)
+                # เอาชื่อเพลงที่แสดงออก
+                Home.delete_name_music(name_de)
+                library.delete_name_music(name_de)
+                # ลบ path ของเพลงนั้น
+                cursor.execute("DELETE FROM music_path WHERE music_path = ?",(path_music,))
+                conn.commit()
+                QMessageBox.warning(None, "suces", f"ลบ{song_name}แล้ว")
+                return True
+        if not found:
+            QMessageBox.warning(None, "Error", f"ไม่เจอเพลงชื่อ {name_music}")
+        conn.close()
+
+    def delete_all_music(self):
+        conn = sqlite3.connect(f"{globals_var.user_now} music path.db")
+        cursor = conn.cursor()
+        # ลบข้อมูลทั้งหมดในตาราง
+        cursor.execute("DELETE FROM music_path")
+        conn.commit()
+        conn.close()
+        globals_var.music_list = []
+    
+    def add_path_music_in_music_list_when_start(self, user_now):
+        conn = sqlite3.connect(f"{user_now} music path.db")
+        cursor = conn.cursor()
+        # ดึง path เพลงทั้งหมด
+        cursor.execute("SELECT * FROM music_path")
+        rows = cursor.fetchall()
+        # แปลงเก็บใน music_list
+        for row in rows:
+            globals_var.music_list.append(row[1])
+    
+    def make_music_path_store(self, make_username):
+        conn = sqlite3.connect(f"{make_username} music path.db")
+        cursor = conn.cursor()
+        # สร้างตารางเก็บ path เพลง
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS music_path (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        music_path TEXT NOT NULL ) """)
+        conn.commit()
+
+        # นำภาพจาก user and pass store ไปเก็บในตัวแปร show_profile
+        conn = sqlite3.connect("user and pass store.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT [proflie picture] FROM user_and_password WHERE username = ?", (make_username,))
+        result = cursor.fetchall()
+        picture_pro = result[0][0]
+        # เก็บภาพใน show_profile
+        globals_var.show_profile = picture_pro
+        conn.close()
 
     # เช็คว่ามี username ซ้ำมั้ย
     def check_username(self, make_username, make_password, confirm_password):
-
-        # เช็คว่ารหัสมีอย่างน้อย8ตัวมั้ย
-        if len(make_password) < 8:
-            QMessageBox.warning(None, "Error", "รหัสผ่านต้องมีอย่างน้อย8ตัว")
-            return False
         
         conn = sqlite3.connect("user and pass store.db")
         cursor = conn.cursor()
@@ -80,21 +279,36 @@ class Control_Data_Store:
         if make_username in self.all_username:
            QMessageBox.warning(None, "Error", f"ชื่อ {make_username} ซ้ำ")
            return False
+        elif make_username == "":
+            QMessageBox.warning(None, "Error", "ยังไม่ได้ใส่ชื่อ")
+            return False
+        # เช็คว่ารหัสมีอย่างน้อย8ตัวมั้ย
+        if len(make_password) < 8:
+            QMessageBox.warning(None, "Error", "รหัสผ่านต้องมีอย่างน้อย8ตัว")
+            return False
         # ตรวจสอบว่ารหัสผ่านตรงกันมั้ย
         if make_password != confirm_password:
             QMessageBox.warning(None, "Error", "รหัสผ่านไม่ตรงกัน")
             return False
-            # เพิ่ม username ในกรณีไม่ซ้ำกัน
-        cursor.execute("INSERT INTO user_and_password (username, password) VALUES (?, ?)", (make_username, make_password))
+        #เช็คว่าใส่โปรไฟล์ยัง
+        if not globals_var.Create_profile_picture:
+           QMessageBox.information(None, "error", "ยังไม่ได้ใส่รูปโปรไฟล์")
+           return False
+         # แปลง Create_profile_picture เป็น bytes ก่อนเก็บ
+        with open(globals_var.Create_profile_picture, "rb") as f:
+            image_bytes = f.read()
+        # เพิ่ม username กับ password และ Create_profile_picture ลงใน user and pass store.db
+        cursor.execute("INSERT INTO user_and_password (username, password, [proflie picture]) VALUES (?, ?, ?)", (make_username, make_password, image_bytes))
         conn.commit()
         globals_var.user_now = make_username
         globals_var.pass_now = make_password
+        globals_var.show_profile = image_bytes
         conn.close()
         print(globals_var.user_now)
+        self.make_music_path_store(make_username)
         return True
     
     def login_check_username_and_password(self, username, password):
-        # ตัดช่องว่าง
         self.username = username
         self.password = password
 
@@ -119,6 +333,7 @@ class Control_Data_Store:
             if not self.password:
                QMessageBox.warning(None, "Error", "กรุณาใส่รหัสผ่านด้วย")
                return False
+            # ดึงรหัสมาตรวจดู
             cursor.execute("SELECT password FROM user_and_password WHERE username = ?", (self.username,))
             #ดึงแถว
             row = cursor.fetchone()
@@ -131,10 +346,27 @@ class Control_Data_Store:
                 QMessageBox.warning(None, "Event", f"ยินดีตอนรับสู่แอพฟังเพลง {username}")
                 globals_var.user_now = self.username
                 globals_var.pass_now = self.password
-                conn.close()
+
+                # เรียก path folder
+                Control_Data_Store.read_path_folder()
                 print(globals_var.user_now)
                 print(globals_var.pass_now)
+                
+                # นำภาพจาก user and pass store ไปเก็บในตัวแปร show_profile
+                cursor.execute("SELECT [proflie picture] FROM user_and_password WHERE username = ?", (globals_var.user_now,))
+                result = cursor.fetchall()
+                picture_pro = result[0][0]
+                conn.commit()
+                conn.close()
+                # เก็บภาพใน show_profile
+                globals_var.show_profile = picture_pro
+                print(f"show_profile is {repr(bytes(globals_var.show_profile)[:10])}")
+
+                # เอา path เพลงไปเก็บใน music_list
+                if not globals_var.music_list:
+                   self.add_path_music_in_music_list_when_start(globals_var.user_now)
                 return True
+
     def delete_profile_in_DB(self, username):
         conn = sqlite3.connect("user and pass store.db")
         cursor = conn.cursor()
@@ -143,6 +375,15 @@ class Control_Data_Store:
         cursor.execute("DELETE FROM user_and_password WHERE username = ?", (username,))
         conn.commit()
         conn.close()
+        # ถ้ามีการเชื่อต่อฐานข้อมูลให้ปิด
+        if conn:
+            conn.close()
+        # ลบไฟล์ db ของ profile นั้น
+        if os.path.exists(f"{username} music path.db"):
+           os.remove(f"{username} music path.db")
+           return True
+        else:
+            return False
         return True
 
 class control_music:
@@ -180,33 +421,63 @@ class control_music:
 
     def check_music_playing(self, song_path):
         if not os.path.exists(song_path):
-            # ไม่มีเพลงเล่น current_song_path เป็นเท็จ
+            # ไม่มีเพลงเล่น music_playing เป็นเท็จ
             self.music_playing = False
             self.current_song_path = None
             return
-        # มีเพลงเล่น current_song_path เป็นจริง
+        # มีเพลงเล่น music_playing เป็นจริง
         self.current_song_path = song_path
         self.music_playing = True
 
     def play_selected_music(self, item):
+        #ล้างประวัติเพลงเมื่อผู้ใช้กดเลือเพลงใหม่
+        globals_var.music_history = []
         song_path = None
+        #หาเพลง
         for path in globals_var.music_list:
             if os.path.basename(path) == item.text():
                song_path = path
                break
-        if not song_path:
-           QMessageBox.warning(self, "Error", "ไม่พบไฟล์เพลง")
-           self.music_playing = False
-           return
         self.check_music_playing(song_path)
+        #เก็บประวัติเพลงไว้ใน music_history
+        globals_var.music_history.append(os.path.basename(self.current_song_path))
+        print(f"play {globals_var.music_history}")
+
         if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
            self.player.stop()
         self.player.setSource(QUrl.fromLocalFile(self.current_song_path))
         self.player.play()
+        self.music_playing = True
+        self.player.mediaStatusChanged.connect(self.check_music_end)
+        globals_var.index_music = 0
+        # ส่งค่า check_index_music ไปอัตโนมัติเมื่อค่าเปลี่ยน
+        globals_var.check_index_music.on_next(globals_var.index_music)
+        print(f"index_music {globals_var.index_music}")
+        print("play_selected_music")
+
+    def check_music_end(self, status):
+        # ทำงานเฉพาะเมื่อเพลงจบ
+        if status == QMediaPlayer.MediaStatus.EndOfMedia:
+           self.random_play()
+           print("check_music_end")
+
+    def random_play(self):
+        song_path = random.choice(globals_var.music_list)
+        
+        self.current_song_path = song_path
+        self.player.setSource(QUrl.fromLocalFile(self.current_song_path))
+        self.player.play()
+        globals_var.music_history.append(os.path.basename(self.current_song_path))
+        print(f"random {globals_var.music_history}")
+        # ขยับตำแหน่ง index_music
+        globals_var.index_music = globals_var.index_music + 1
+        # ส่งค่า check_index_music ไปอัตโนมัติเมื่อค่าเปลี่ยน
+        globals_var.check_index_music.on_next(globals_var.index_music)
+        print(f"index_music {globals_var.index_music}")
+        print("random_play")
 
     def auto_update_music_playing(self, scoll):
         player = self.player
-
         player.durationChanged.connect(lambda long_music: scoll.setRange(0, long_music))
         player.positionChanged.connect(scoll.setValue)
         scoll.sliderReleased.connect(lambda: player.setPosition(scoll.value()))
@@ -235,24 +506,59 @@ class control_music:
         # ตั้งค่า range ตามความยาวเพลง
         player.durationChanged.connect(lambda duration: scoll.setRange(0, duration))
 
+    # เริ่มเพลงใหม่
     def user_restart_music(self):
-        if self.music_playing:
-            self.player.stop()
+        if globals_var.index_music is None:
+            return False
+        now = time.time()
+        if now - globals_var.first_press < globals_var.double_click:
+            if globals_var.index_music <= 0:
+               return False
+            # เก็บเวลากดครั้งแรก
+            globals_var.index_music = globals_var.index_music - 1
+            song_path = None
+            for path in globals_var.music_list:
+                if os.path.basename(path) == globals_var.music_history[globals_var.index_music]:
+                   song_path = path
+                   break
+            self.player.setSource(QUrl.fromLocalFile(song_path))
             self.player.play()
-            self.music_playing = True
+            print(f"index_music {globals_var.index_music}")
+            # ส่งค่า check_index_music ไปอัตโนมัติเมื่อค่าเปลี่ยน
+            globals_var.check_index_music.on_next(globals_var.index_music)
+       
+        elif now - globals_var.first_press > globals_var.double_click:
+            if self.music_playing:
+               self.player.stop()
+               self.player.play()
+               self.music_playing = True
+        globals_var.first_press = now
 
+    # เล่นเพลงต่อ
     def user_play_music(self):
         if not self.music_playing:
            self.player.play()
            self.music_playing = True
 
+    # หยุดเพลง
     def user_stop_music(self):
         if self.music_playing:
            self.player.pause()
            self.music_playing = False
 
+    # ข้ามเพลง
     def user_skip_music(self):
-        pass
+        if globals_var.index_music is None:
+            return False
+        if globals_var.index_music + 1 < len(globals_var.music_history):
+            globals_var.index_music = globals_var.index_music + 1
+            self.player.setSource(QUrl.fromLocalFile(globals_var.music_history[globals_var.index_music]))
+            self.player.play()
+            print(f"index_music {globals_var.index_music}")
+        else:
+            self.random_play()
+
+
 #แอปฟังเพลงของผมเอง
 class login_App_music(QDialog):
     def __init__(self, stacked_widget_login_page):
@@ -312,17 +618,16 @@ class Create_profile(QDialog):
     def __init__(self, stacked_widget_Create_profile):
         super().__init__()
         uic.loadUi("music sign up.ui", self)
+        self.setMinimumSize(900, 700)
         #เก็บสแต็ก
         self.stacked_widget = stacked_widget_Create_profile  
 
-        #ปุ่มตรวจสอบรหัสผ่าน
+        #ปุ่มสร้างโปรไฟล์
         self.signup_button.clicked.connect(self.create_profile)
         #ปุ่มเลือกภาพโปรไฟล์
-        self.add_picture_pro.clicked.connect(self.add_picture_to_profile)
+        self.add_picture_pro.clicked.connect(self.edit_picture_to_profile)
         #ปุ่มกลับหน้าล็อคอิน 
         self.back_to_login.clicked.connect(self.go_back_to_login)
-        #เก็บpathรูปภาพ
-        self.profile_image_path = None
 
     def set_ui_sign_up(self):
 
@@ -348,51 +653,73 @@ class Create_profile(QDialog):
         self.set_ui_sign_up()
 
     def go_back_to_login(self):
+        self.make_username.clear()
+        self.make_password.clear()
+        self.confirm_password.clear()
         self.stacked_widget.setCurrentIndex(0)
 
-    def add_picture_to_profile(self):
-        file_name, _ = QFileDialog.getOpenFileName (
-            self,
-            "Select Profile Picture",
-            "",
-            "Images (*.png *.jpg *.jpeg)"   )
-        if file_name:
-           self.profile_image_path = file_name
-        self.open_edit_profile_ui()
-
-    def open_edit_profile_ui(self):
+    def edit_picture_to_profile(self):
         edit_dialog = QDialog(self)
         uic.loadUi("sign up edit profile.ui", edit_dialog)
-
-        if self.profile_image_path:
-           #หาQGraphicsView จาก ui ก่อน
-           graphics_view = edit_dialog.findChild(QGraphicsView, "edit_picture_profile")
-           slider = edit_dialog.findChild(QSlider, "L_D_pickture")
-
-           if graphics_view:
-              # สร้างQGraphicsScene
-              scene = QGraphicsScene()
-              #โหลดรูป
-              original_pixmap = QPixmap(self.profile_image_path)
-              #แปลงเป็น item
-              item = QGraphicsPixmapItem(original_pixmap)
-              scene.addItem(item)
-              #ตั้งsceneให้กับQGraphicsView
-              graphics_view.setScene(scene)
-              graphics_view.fitInView(item, Qt.AspectRatioMode.KeepAspectRatio)
-
-        edit_pic_box = edit_dialog.findChild(QGroupBox, "sign_up_edit_pic_Box")
-        if edit_pic_box:
-           dialog_width = 900
-           dialog_height = 600
-           box_width = edit_pic_box.width()
-           box_height = edit_pic_box.height()
-           x = (dialog_width - box_width) // 2
-           y = (dialog_height - box_height) // 2
-           edit_pic_box.setGeometry(QRect(x, y, box_width, box_height))
-
         edit_dialog.setFixedSize(900, 600)
+        # หา widget ต่างๆจากใน edit_dialog
+        select = edit_dialog.findChild(QPushButton, "selec_picture")
+        view = edit_dialog.findChild(QGraphicsView, "edit_profile")
+        send = edit_dialog.findChild(QPushButton, "sumit_profile")
+        # ปุ่มเลือกภาพ profile
+        select.clicked.connect(lambda: self.look_picture(edit_dialog, view, send))
         edit_dialog.exec()
+    # เปิดโฟรเดอร์เลือกไฟล์
+    def look_picture(self, edit_dialog, view, send):
+        # เปิดไฟล์เลือกภาพ
+        file_name, _ = QFileDialog.getOpenFileName (
+        self,
+        "Select Profile Picture",
+        "",
+        "Images (*.png *.jpg *.jpeg)"   )
+            
+        if not file_name:
+            return False
+        
+        if file_name:
+            # เก็บ path ของภาพลง Create_profile_picture
+            globals_var.Create_profile_picture = file_name
+            # แสดงภาพใน edit_profile
+            pixmap = QPixmap(globals_var.Create_profile_picture)
+            screen = QGraphicsScene()
+            screen.addPixmap(pixmap)
+            view.setScene(screen)
+            # ปรับขนาดให้พอดี
+            view.fitInView(screen.itemsBoundingRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+            # กด sumit_profile เพื่อส่งภาพ
+            send.clicked.connect(lambda: self.show_picture_profile_in_picture_pro_box(pixmap, edit_dialog))
+    
+    def show_picture_profile_in_picture_pro_box(self, pixmap, edit_dialog):
+        # แสดงภาพใน picture_pro_box
+        # เอาขอบ picture_pro_box ออก
+        self.picture_pro_box.setStyleSheet("border: none;")
+        # ดึง layout มาตรวจสอบว่ามีของเก่ามั้ย
+        layout = self.picture_pro_box.layout()
+        if layout is None:
+            layout = QVBoxLayout(self.picture_pro_box)
+            self.picture_pro_box.setLayout(layout)
+        elif layout is not None:
+            # ลบ widget เก่าออกก่อน
+            child = layout.takeAt(0)
+            if child.widget():
+               child.widget().deleteLater()
+
+        # สร้าง QLabel สำหรับแสดงภาพ
+        label = QLabel(self)
+         # กำหนดขนาด QLabel เป็น 200x200
+        label.setFixedSize(200, 200)
+        label.setPixmap(pixmap.scaled(200, 200,Qt.AspectRatioMode.KeepAspectRatio,Qt.TransformationMode.SmoothTransformation))
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # เพิ่ม QLabel ลงใน layout
+        layout.addWidget(label)
+        # ปิดหน้าต่าง
+        edit_dialog.close()
 
     def create_profile(self):
         make_username = self.make_username.text()
@@ -403,7 +730,6 @@ class Create_profile(QDialog):
             QMessageBox.information(self, "Info", f"สร้างโปรไฟล์แล้ว ชื่อของคุณ {make_username}")
             # ไปหน้า home_page
             self.after_sign_up()
-
     
     #หลังจากลงทะเบียนแล้วก็ไปหน้าโฮมเลย
     def after_sign_up(self):
@@ -460,9 +786,10 @@ class Home_page(QMainWindow):
         # ข้ามเพลง skip_music
         self.skip_music.clicked.connect(control_music().user_skip_music)
 
-
-
         self.bar_app.setFixedHeight(70)
+
+        # ออกจากโปรไฟล์ out_profile
+        self.out_profile.clicked.connect(self.home_to_loging)
 
     #กำหนดตำแหน่งต่างๆในหน้า
     def resizeEvent(self, event):
@@ -489,22 +816,42 @@ class Home_page(QMainWindow):
         Right_bar_x = int(self.width() * 1.0 - 470)
         self.Right_bar.setGeometry(Right_bar_x, 70, 470, bar_h)
 
-        # จัดตำแหน่งMedia
+        # จัดตำแหน่ง Media
         # ดึง geometry จริงของ Right_bar
         Right_bar_geo = self.Right_bar.geometry()
         space = 50
         show_music_x = Right_bar_geo.x() + space
         self.Media.setGeometry(int(show_music_x + 12), 80, 350, 350)
+        # แสดงภาพปกเพลงของ Media
+        globals_var.check_index_music.subscribe(lambda check_index_music: globals_var.update_Media(check_index_music, self.Media))
 
+        # สร้างตัวแปรสำหรับปรับขนาดของ name_song artis_name_song
+        size = QFont()
         # จัดตำแหน่ง name_song
-        self.name_song.setGeometry(int(show_music_x + 12), 450, 91, 41)
-
+        self.name_song.setGeometry(int(show_music_x + 12), 450, 350, 41)
+        if globals_var.index_music is None:
+           # ปรับขนาดตัวหนังสือ
+           size.setPointSize(15)
+           self.name_song.setFont(size)
+           # กำหนดข้อความ name_song
+           self.name_song.setText("Name song")
+        # เปลี่ยนชื่อเพลงทุกครั้งที่ตัวแปร check_index_music เปลี่ยน
+        globals_var.check_index_music.subscribe(lambda check_index_music: globals_var.update_name_song(check_index_music, self.name_song))
+         
         # จัดตำแหน่ง artis_name_song
-        self.artis_name_song.setGeometry(int(show_music_x + 250), 470, 91, 41)
-
+        self.artis_name_song.setGeometry(int(show_music_x + 12), 490, 350, 41)
+        if globals_var.index_music is None:
+           # ปรับขนาดตัวหนังสือ
+           size.setPointSize(14)
+           self.artis_name_song.setFont(size)
+           # กำหนดข้อความ artis_name_song
+           self.artis_name_song.setText("artist")
+        # เปลี่ยนชื่อศิลปินทุกครั้งที่ตัวแปร check_index_music เปลี่ยน
+        globals_var.check_index_music.subscribe(lambda check_index_music: globals_var.update_artis_name_song(check_index_music, self.artis_name_song))
+      
         # จัดตำแหน่ง play_music_box
-        play_music_box_w = int(self.width() - 661) // 2
-        self.play_music_box.setGeometry(int(play_music_box_w), int(down_bar_y + 5), 661, 91)
+        play_music_box_w = int(self.width() - 521) // 2
+        self.play_music_box.setGeometry(int(play_music_box_w), int(down_bar_y + 5), 521, 91)
 
         # จัดตำแหน่ง add_music
         add_music_x = int(self.width() - 61) // 7
@@ -533,9 +880,11 @@ class Home_page(QMainWindow):
         border: 0.5px solid #85c1e9;        /*ขอบ*/
         }}
            """)
+        # ใส่ภาพให้ edit_profile
+        
 
         # จัดตำแหน่ง out_profile
-        self.out_profile.setGeometry( int(edit_profile_x + 50), int(edit_profile_y + 15), 101, 16)
+        self.out_profile.setGeometry( int(edit_profile_x + 50), int(edit_profile_y + 10), 100, 32)
 
         # จัดตำแหน่ง text_flie_type
         self.text_flie_type.setGeometry( int(add_music_x + 80), 80, 181, 16)
@@ -545,16 +894,25 @@ class Home_page(QMainWindow):
 
         # จัดตำแหน่ง set_volum
         set_volum_w = int(self.width() * 0.08)
-        self.set_volum.setGeometry(int(play_music_box_w + 665), int(down_bar_y + 20), set_volum_w, 25)
+        self.set_volum.setGeometry(int(play_music_box_w + 521), int(down_bar_y + 20), set_volum_w, 25)
 
         # จัดตำแหน่ง text_set_volum
-        self.text_set_volum.setGeometry(int(play_music_box_w + 665), int(down_bar_y + 40), set_volum_w, 25)
+        self.text_set_volum.setGeometry(int(play_music_box_w + 521), int(down_bar_y + 40), set_volum_w, 25)
+
+    # ลบ item ใน show_all_music เมื่อ music_list ว่าง
+    def de_item_when_music_list_space(self):
+        if not globals_var.music_list:
+            self.list_widget.clear()
+            return True
 
     def add_music_file_to_list(self, list_widget, music_list):
         # ให้ผู้ใช้เลือกโฟลเดอร์
         folder_path = QFileDialog.getExistingDirectory(None, "เลือกโฟลเดอร์")
-        # เก็บ path โฟร์เดอร์เป็นสากล
-        globals_var.global_folder_path = folder_path
+        if folder_path:
+           # เก็บ path โฟร์เดอร์เป็นสากล
+           globals_var.global_folder_path = folder_path
+           print(f"foder path is {globals_var.global_folder_path}")
+           Control_Data_Store.update_path_folder()
         if not folder_path:
            return  # ถ้าไม่เลือกอะไรเลย
         dup_music = []  # เก็บชื่อเพลงซ้ำ
@@ -567,20 +925,31 @@ class Home_page(QMainWindow):
             # ตรวจสอบว่ามีนามสกุลที่เรากำหนดหรือไม่
             if ext not in allow_music:
                continue
-            # ตรวจสอบว่าเพลงซ้ำใน list_widget มั้ย
-            exists = any(list_widget.item(i).text() == file_name for i in range(list_widget.count()))
+            # ตรวจสอบว่าเพลงซ้ำใน music_you_add มั้ย
+            exists = any(list_widget.item(i).text() == file_name for i in range(list_widget.count())) or any(os.path.basename(path) == file_name for path in music_list)
             if exists:
               dup_music.append(file_name)
             else:
-              # เพิ่มเพลงลง QListWidget และ list ของเรา
+              # เพิ่มเพลงลง music_you_add และ list ของเรา
               music_list.append(file_path)
               list_widget.insertItem(0, file_name)
+
         # ถ้ามีเพลงซ้ำ แสดงหน้าต่างแจ้งเตือน
         if dup_music:
            show_dup_music = "\n".join(dup_music)
            QMessageBox.warning(self,
             "เพลงซ้ำ",
             f"เพลงที่จะไม่ถูกเพิ่ม:\n{show_dup_music}")
+        # เอา path เพลงไปเก็บใน db
+        Control_Data_Store().add_music_in_DB(music_list)
+    
+    def delete_name_music(self, name_de):
+        # เก็บชื่อ item ที่ต้องการจะลบ
+        music_want_de = self.list_widget.findItems(name_de, Qt.MatchFlag.MatchExactly)
+        # หา item ที่ชื่อตรงกัน แล้วลบ
+        for item in music_want_de:
+            where_item = self.list_widget.row(item)
+            self.list_widget.takeItem(where_item)
 
     def open_edit_profile_dialog(self):
         open_edit = QDialog(self)
@@ -593,6 +962,15 @@ class Home_page(QMainWindow):
 
     def home_to_setting(self):
        self.stacked_widget.setCurrentIndex(4)
+
+    def home_to_loging(self):
+        globals_var.user_now = None
+        globals_var.pass_now = None
+        globals_var.show_profile = None
+        print(f" user is {globals_var.user_now}")
+        print(f" pass is {globals_var.pass_now}")
+        print(f"picture_pro is {globals_var.show_profile}")
+        self.stacked_widget.setCurrentIndex(0)
 
 class library_page(QMainWindow):
     def __init__(self, stacked_widget_library_page):
@@ -647,12 +1025,18 @@ class library_page(QMainWindow):
         # ข้ามเพลง skip_music
         self.skip_music.clicked.connect(control_music().user_skip_music)
 
+        # ออกจากโปรไฟล์ out_profile
+        self.out_profile.clicked.connect(self.home_to_loging)
+
         self.bar_app.setFixedHeight(70)
 
     def update_music_list(self):
+        # ลบ item ใน show_all_music เมื่อ music_list ว่าง
+        if not globals_var.music_list:
+            self.list_widget.clear()
         for song_path in globals_var.music_list:
             song_name = os.path.basename(song_path)
-            # ตรวจสอบว่ามีใน QListWidget หรือยัง
+            # ตรวจสอบว่ามี song_name ใน list_widget หรือยัง (ป้องกันการเพิ่มเพลงซ้ำ)
             exists = any(self.list_widget.item(i).text() == song_name for i in range(self.list_widget.count()))
             if not exists:
                self.list_widget.addItem(song_name)
@@ -687,16 +1071,36 @@ class library_page(QMainWindow):
         space = 50
         show_music_x = Right_bar_geo.x() + space
         self.Media.setGeometry(int(show_music_x + 12), 80, 350, 350)
+        # แสดงภาพปกเพลงของ Media
+        globals_var.check_index_music.subscribe(lambda check_index_music: globals_var.update_Media(check_index_music, self.Media))
 
+        # สร้างตัวแปรสำหรับปรับขนาดของ name_song artis_name_song
+        size = QFont()
         # จัดตำแหน่ง name_song
-        self.name_song.setGeometry(int(show_music_x + 12), 450, 91, 41)
+        self.name_song.setGeometry(int(show_music_x + 12), 450, 350, 41)
+        if globals_var.index_music is None:
+        # ปรับขนาดตัวหนังสือ
+           size.setPointSize(15)
+           self.name_song.setFont(size)
+           # กำหนดข้อความ name_song
+           self.name_song.setText("Name song")
+        # เปลี่ยนชื่อเพลงทุกครั้งที่ตัวแปร check_index_music เปลี่ยน
+        globals_var.check_index_music.subscribe(lambda check_index_music: globals_var.update_name_song(check_index_music, self.name_song))
 
         # จัดตำแหน่ง artis_name_song
-        self.artis_name_song.setGeometry(int(show_music_x + 250), 470, 91, 41)
+        self.artis_name_song.setGeometry(int(show_music_x + 12), 490, 350, 41)
+        if globals_var.index_music is None:
+           # ปรับขนาดตัวหนังสือ
+           size.setPointSize(14)
+           self.artis_name_song.setFont(size)
+           # กำหนดข้อความ artis_name_song
+           self.artis_name_song.setText("artist")
+        # เปลี่ยนชื่อศิลปินทุกครั้งที่ตัวแปร check_index_music เปลี่ยน
+        globals_var.check_index_music.subscribe(lambda check_index_music: globals_var.update_artis_name_song(check_index_music, self.artis_name_song))
 
         # จัดตำแหน่ง play_music_box
-        play_music_box_w = int(self.width() - 661) // 2
-        self.play_music_box.setGeometry(int(play_music_box_w), int(down_bar_y + 5), 661, 91)
+        play_music_box_w = int(self.width() - 521) // 2
+        self.play_music_box.setGeometry(int(play_music_box_w), int(down_bar_y + 5), 521, 91)
 
         # จัดตำแหน่ง t_show_all_music
         t_show_all_music_x = int(self.width() * 0.1)
@@ -707,7 +1111,7 @@ class library_page(QMainWindow):
         show_all_music_h = int(self.height() * 1 - 300)
         self.show_all_music.setGeometry(t_show_all_music_x, 120, show_all_music_w, show_all_music_h)
 
-         # จัดตำแหน่ง edit_profile
+        # จัดตำแหน่ง edit_profile
         margin_right = 100
         margin_top = 10
         button_w = 50
@@ -725,14 +1129,22 @@ class library_page(QMainWindow):
            """)
         
         # จัดตำแหน่ง out_profile
-        self.out_profile.setGeometry( int(edit_profile_x + 50), int(edit_profile_y + 15), 101, 16)
+        self.out_profile.setGeometry( int(edit_profile_x + 50), int(edit_profile_y + 10), 100, 32)
 
         # จัดตำแหน่ง set_volum
         set_volum_w = int(self.width() * 0.08)
-        self.set_volum.setGeometry(int(play_music_box_w + 665), int(down_bar_y + 20), set_volum_w, 25)
+        self.set_volum.setGeometry(int(play_music_box_w + 521), int(down_bar_y + 20), set_volum_w, 25)
 
         # จัดตำแหน่ง text_set_volum
-        self.text_set_volum.setGeometry(int(play_music_box_w + 665), int(down_bar_y + 40), set_volum_w, 25)
+        self.text_set_volum.setGeometry(int(play_music_box_w + 521), int(down_bar_y + 40), set_volum_w, 25)
+
+    def delete_name_music(self, name_de):
+        # เก็บชื่อ item ที่ต้องการจะลบ
+        music_want_de = self.list_widget.findItems(name_de, Qt.MatchFlag.MatchExactly)
+        # หา item ที่ชื่อตรงกัน แล้วลบ
+        for item in music_want_de:
+            where_item = self.list_widget.row(item)
+            self.list_widget.takeItem(where_item)
 
     def open_edit_profile_dialog(self):
         open_edit = QDialog(self)
@@ -740,10 +1152,20 @@ class library_page(QMainWindow):
         open_edit.exec()
 
     def library_to_home(self):
+        Home.de_item_when_music_list_space()
         self.stacked_widget.setCurrentIndex(2)
 
     def library_to_setting(self):
-         self.stacked_widget.setCurrentIndex(4)
+        self.stacked_widget.setCurrentIndex(4)
+
+    def home_to_loging(self):
+        globals_var.user_now = None
+        globals_var.pass_now = None
+        globals_var.pic_pro = None
+        print(f" user is {globals_var.user_now}")
+        print(f" pass is {globals_var.pass_now}")
+        print(f"picture_pro is {globals_var.show_profile}")
+        self.stacked_widget.setCurrentIndex(0)
 
 class setting_page(QMainWindow):
     def __init__(self, stacked_widget_setting_page):
@@ -790,6 +1212,14 @@ class setting_page(QMainWindow):
         # ข้ามเพลง skip_music
         self.skip_music.clicked.connect(control_music().user_skip_music)
 
+        # ออกจากโปรไฟล์ out_profile
+        self.out_profile.clicked.connect(self.home_to_loging)
+
+        # เชื่อมปุ่ม del_music_all
+        self.del_music_all.clicked.connect(Control_Data_Store().delete_all_music)
+
+        # เชื่อมปุ่ม del_music
+        self.del_music.clicked.connect(Control_Data_Store().delete_some_music)
 
         self.bar_app.setFixedHeight(70)
 
@@ -814,16 +1244,36 @@ class setting_page(QMainWindow):
         space = 50
         show_music_x = Right_bar_geo.x() + space
         self.Media.setGeometry(int(show_music_x + 12), 80, 350, 350)
+        # แสดงภาพปกเพลงของ Media
+        globals_var.check_index_music.subscribe(lambda check_index_music: globals_var.update_Media(check_index_music, self.Media))
 
+        # สร้างตัวแปรสำหรับปรับขนาดของ name_song artis_name_song
+        size = QFont()
         # จัดตำแหน่ง name_song
-        self.name_song.setGeometry(int(show_music_x + 12), 450, 91, 41)
+        self.name_song.setGeometry(int(show_music_x + 12), 450, 350, 41)
+        if globals_var.index_music is None:
+           # ปรับขนาดตัวหนังสือ
+           size.setPointSize(15)
+           self.name_song.setFont(size)
+           # กำหนดข้อความ name_song
+           self.name_song.setText("Name song")
+        # เปลี่ยนชื่อเพลงทุกครั้งที่ตัวแปร check_index_music เปลี่ยน
+        globals_var.check_index_music.subscribe(lambda check_index_music: globals_var.update_name_song(check_index_music, self.name_song))
 
         # จัดตำแหน่ง artis_name_song
-        self.artis_name_song.setGeometry(int(show_music_x + 250), 470, 91, 41)
+        self.artis_name_song.setGeometry(int(show_music_x + 12), 490, 350, 41)
+        if globals_var.index_music is None:
+           # ปรับขนาดตัวหนังสือ
+           size.setPointSize(14)
+           self.artis_name_song.setFont(size)
+           # กำหนดข้อความ artis_name_song
+           self.artis_name_song.setText("artist")
+        # เปลี่ยนชื่อศิลปินทุกครั้งที่ตัวแปร check_index_music เปลี่ยน
+        globals_var.check_index_music.subscribe(lambda check_index_music: globals_var.update_artis_name_song(check_index_music, self.artis_name_song))
 
         # จัดตำแหน่ง play_music_box
-        play_music_box_w = int(self.width() - 661) // 2
-        self.play_music_box.setGeometry(int(play_music_box_w), int(down_bar_y + 5), 661, 91)
+        play_music_box_w = int(self.width() - 521) // 2
+        self.play_music_box.setGeometry(int(play_music_box_w), int(down_bar_y + 5), 521, 91)
 
         #เก็บค่าความกว้างยาวของเมนู
         manu_box_w = self.manu_box.width()
@@ -834,7 +1284,7 @@ class setting_page(QMainWindow):
         #แสดงเมนู
         self.manu_box.setGeometry(x, y, manu_box_w, manu_box_h)
 
-         # จัดตำแหน่ง edit_profile
+        # จัดตำแหน่ง edit_profile
         margin_right = 100
         margin_top = 10
         button_w = 50
@@ -852,14 +1302,14 @@ class setting_page(QMainWindow):
            """)
         
         # จัดตำแหน่ง out_profile
-        self.out_profile.setGeometry( int(edit_profile_x + 50), int(edit_profile_y + 15), 101, 16)
+        self.out_profile.setGeometry( int(edit_profile_x + 50), int(edit_profile_y + 10), 100, 32)
 
         # จัดตำแหน่ง set_volum
         set_volum_w = int(self.width() * 0.08)
-        self.set_volum.setGeometry(int(play_music_box_w + 665), int(down_bar_y + 20), set_volum_w, 25)
+        self.set_volum.setGeometry(int(play_music_box_w + 521), int(down_bar_y + 20), set_volum_w, 25)
 
         # จัดตำแหน่ง text_set_volum
-        self.text_set_volum.setGeometry(int(play_music_box_w + 665), int(down_bar_y + 40), set_volum_w, 25)
+        self.text_set_volum.setGeometry(int(play_music_box_w + 521), int(down_bar_y + 40), set_volum_w, 25)
 
         # จัดตำแหน่ง del_music_y
         del_music_x = int(self.width() * 0.1 )
@@ -869,24 +1319,20 @@ class setting_page(QMainWindow):
         # จัดตำแหน่ง del_music_all
         self.del_music_all.setGeometry(int(del_music_x + 150), del_music_y, 91, 32)
 
-        # จัดตำแหน่ง text_mode
-        self.text_mode.setGeometry(del_music_x, int(del_music_y + 100), 99, 20)
-
-        # จัดตำแหน่ง mode_hot
-        self.mode_hot.setGeometry(del_music_x, int(del_music_y + 130), 99, 20)
-
-        # จัดตำแหน่ง mode_night
-        self.mode_night.setGeometry(del_music_x, int(del_music_y + 160), 99, 20)
-
         # จัดตำแหน่ง del_profile
-        self.del_profile.setGeometry(del_music_x, int(del_music_y + 300), 71, 32)
+        self.del_profile.setGeometry(del_music_x, int(del_music_y + 150), 71, 32)
 
     def delete_profile(self):
-        username = globals_var.user_now
+        # ถามผู้ใช้ว่าจะลบจริงๆใช่มั้ย
+        awer = QMessageBox.question(None, "ask for delete pro", "ต้องการลบโปรไฟล์นี้จริงๆใช่มั้ย", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if awer == QMessageBox.StandardButton.Yes:
+           username = globals_var.user_now
 
-        check_del = Control_Data_Store().delete_profile_in_DB(username)
-        if check_del:
-            self.stacked_widget.setCurrentIndex(0)
+           check_del = Control_Data_Store().delete_profile_in_DB(username)
+           if check_del:
+              self.stacked_widget.setCurrentIndex(0)
+        elif awer == QMessageBox.StandardButton.No:
+            return False
 
     def open_edit_profile_dialog(self):
         open_edit = QDialog(self)
@@ -894,10 +1340,21 @@ class setting_page(QMainWindow):
         open_edit.exec()
     
     def setting_to_home(self):
+        Home.de_item_when_music_list_space()
         self.stacked_widget.setCurrentIndex(2)
 
     def setting_to_library(self):
+        library.update_music_list()
         self.stacked_widget.setCurrentIndex(3)
+
+    def home_to_loging(self):
+        globals_var.user_now = None
+        globals_var.pass_now = None
+        globals_var.pic_pro = None
+        print(f" user is {globals_var.user_now}")
+        print(f" pass is {globals_var.pass_now}")
+        print(f"picture_pro is {globals_var.show_profile}")
+        self.stacked_widget.setCurrentIndex(0)
 
 
 app = QApplication(sys.argv)
